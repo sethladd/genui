@@ -1,17 +1,32 @@
 import 'dart:async';
+import 'dart:isolate';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:json_rpc_2/json_rpc_2.dart' as rpc;
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:stream_channel/isolate_channel.dart';
 
-import 'dynamic_ui.dart';
+import 'firebase_options.dart';
+import 'src/dynamic_ui.dart';
+import 'src/ui_server.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final firebaseApp = await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(GenUIApp(
+    firebaseApp: firebaseApp,
+  ));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class GenUIApp extends StatelessWidget {
+  const GenUIApp({
+    super.key,
+    required this.firebaseApp,
+  });
+
+  final FirebaseApp firebaseApp;
 
   @override
   Widget build(BuildContext context) {
@@ -21,116 +36,117 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(),
+      home: GenUIHomePage(
+        firebaseApp: firebaseApp,
+      ),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, this.connect});
-
-  final void Function()? connect;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+ServerConnection createIsolateServerConnection({
+  required FirebaseApp firebaseApp,
+  required SetUiCallback onSetUi,
+  required UpdateUiCallback onUpdateUi,
+  required ErrorCallback onError,
+  required StatusUpdateCallback onStatusUpdate,
+  ServerSpawner? serverSpawnerOverride,
+}) {
+  return IsolateServerConnection(
+    firebaseApp: firebaseApp,
+    onSetUi: onSetUi,
+    onUpdateUi: onUpdateUi,
+    onError: onError,
+    onStatusUpdate: onStatusUpdate,
+    serverSpawnerOverride: serverSpawnerOverride,
+  );
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class GenUIHomePage extends StatefulWidget {
+  const GenUIHomePage({
+    super.key,
+    this.autoStartServer = true,
+    required this.firebaseApp,
+    this.serverSpawnerOverride,
+    this.connectionFactory = createIsolateServerConnection,
+  });
+
+  final bool autoStartServer;
+  final FirebaseApp firebaseApp;
+  final ServerSpawner? serverSpawnerOverride;
+  final ServerConnectionFactory connectionFactory;
+
+  @override
+  State<GenUIHomePage> createState() => _GenUIHomePageState();
+}
+
+class _GenUIHomePageState extends State<GenUIHomePage> {
   final _updateController = StreamController<Map<String, Object?>>.broadcast();
-  rpc.Peer? _rpcPeer;
   Map<String, Object?>? _uiDefinition;
-  String _connectionStatus = 'Connecting...';
+  String _connectionStatus = 'Initializing...';
   Key _uiKey = UniqueKey();
+  final _promptController = TextEditingController();
+  late final ServerConnection _serverConnection;
 
   @override
   void initState() {
     super.initState();
-    (widget.connect ?? _connect)();
-  }
-
-  void _connect() {
-    setState(() {
-      _connectionStatus = 'Connecting...';
-      _uiDefinition = null;
-    });
-
-    try {
-      final socket =
-          WebSocketChannel.connect(Uri.parse('ws://localhost:8765/ws'));
-      // A Peer establishes a bidirectional connection.
-      _rpcPeer = rpc.Peer(socket.cast<String>());
-
-      // Register methods that the server can call on this client.
-      _rpcPeer!.registerMethod('ui.set', (rpc.Parameters params) {
+    _serverConnection = widget.connectionFactory(
+      firebaseApp: widget.firebaseApp,
+      serverSpawnerOverride: widget.serverSpawnerOverride,
+      onSetUi: (definition) {
         if (!mounted) return;
-        debugPrint('Setting UI to ${params.value}');
         setState(() {
-          final definition = params.value as Map<String, Object?>;
           _uiDefinition = definition;
-          // Changing the key forces the DynamicUi widget to be replaced
-          // and its state to be completely rebuilt from the new definition.
           _uiKey = UniqueKey();
         });
-      });
-
-      _rpcPeer!.registerMethod('ui.update', (rpc.Parameters params) {
+      },
+      onUpdateUi: (updates) {
         if (!mounted) return;
-        debugPrint('Updating UI to ${params.value}');
-        final updates = params.asList;
         for (final update in updates) {
-          _updateController.add(update as Map<String, Object?>);
+          _updateController.add(update);
         }
-      });
+      },
+      onError: (message) {
+        if (!mounted) return;
+        setState(() {
+          _connectionStatus = 'Error: $message';
+          _uiDefinition = null;
+        });
+      },
+      onStatusUpdate: (status) {
+        if (!mounted) return;
+        setState(() {
+          _connectionStatus = status;
+          if (status != 'Server started.') {
+            _uiDefinition = null;
+          }
+        });
+      },
+    );
 
-      // Start listening for incoming messages from the server.
-      _rpcPeer!.listen().catchError((Object error) {
-        if (error is rpc.RpcException) {
-          print('RPC Error: ${error.message} (code ${error.code})');
-        } else {
-          print('Connection Error: $error');
-        }
-        if (mounted) {
-          setState(() => _connectionStatus = 'Connection Error');
-        }
-      });
-
-      _rpcPeer!.done.then((_) {
-        print('WebSocket connection closed.');
-        if (mounted) {
-          setState(() {
-            _connectionStatus = 'Disconnected. Retrying...';
-          });
-          // Attempt to reconnect after a delay.
-          Future.delayed(const Duration(seconds: 3), _reconnect);
-        }
-      });
-    } catch (e) {
-      print('Failed to connect: $e');
-      setState(() {
-        _connectionStatus = 'Failed to connect. Retrying...';
-      });
-      Future.delayed(const Duration(seconds: 3), _reconnect);
+    if (widget.autoStartServer) {
+      _serverConnection.start();
     }
-  }
-
-  void _reconnect() {
-    _rpcPeer?.close();
-    _rpcPeer = null;
-    _connect();
   }
 
   @override
   void dispose() {
     _updateController.close();
-    _rpcPeer?.close();
+    _serverConnection.dispose();
+    _promptController.dispose();
     super.dispose();
   }
 
-  /// Sends a UI event to the server as a JSON-RPC notification.
   void _handleUiEvent(Map<String, Object?> event) {
-    print('Sending UI Event: $event');
-    // We send a notification because we don't expect a direct response.
-    _rpcPeer?.sendNotification('ui.event', event);
+    _serverConnection.sendUiEvent(event);
+  }
+
+  void _sendPrompt() {
+    final prompt = _promptController.text;
+    _serverConnection.sendPrompt(prompt);
+    if (prompt.isNotEmpty) {
+      _promptController.clear();
+    }
   }
 
   @override
@@ -140,29 +156,183 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('Dynamic UI Demo'),
       ),
-      body: _uiDefinition == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(_connectionStatus),
-                ],
-              ),
-            )
-          : ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth:1000),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: DynamicUi(
-                  key: _uiKey,
-                  definition: _uiDefinition!,
-                  updateStream: _updateController.stream,
-                  onEvent: _handleUiEvent,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _promptController,
+                        decoration: const InputDecoration(
+                          hintText: 'Enter a UI prompt',
+                        ),
+                        onSubmitted: (_) => _sendPrompt(),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send),
+                      onPressed: _sendPrompt,
+                    ),
+                  ],
                 ),
               ),
-            ),
+              Expanded(
+                child: _uiDefinition == null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_connectionStatus == 'Generating UI...')
+                              const CircularProgressIndicator(),
+                            const SizedBox(height: 16),
+                            Text(_connectionStatus),
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: DynamicUi(
+                          key: _uiKey,
+                          definition: _uiDefinition!,
+                          updateStream: _updateController.stream,
+                          onEvent: _handleUiEvent,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
+
+@visibleForTesting
+typedef SetUiCallback = void Function(Map<String, Object?> definition);
+@visibleForTesting
+typedef UpdateUiCallback = void Function(List<Map<String, Object?>> updates);
+@visibleForTesting
+typedef ErrorCallback = void Function(String message);
+@visibleForTesting
+typedef StatusUpdateCallback = void Function(String status);
+@visibleForTesting
+typedef ServerSpawner = Future<Isolate> Function(SendPort, FirebaseApp);
+
+@visibleForTesting
+abstract class ServerConnection {
+  Future<void> start();
+  void sendPrompt(String text);
+  void sendUiEvent(Map<String, Object?> event);
+  void dispose();
+}
+
+@visibleForTesting
+class IsolateServerConnection implements ServerConnection {
+  IsolateServerConnection({
+    required this.firebaseApp,
+    required this.onSetUi,
+    required this.onUpdateUi,
+    required this.onError,
+    required this.onStatusUpdate,
+    this.serverSpawnerOverride,
+  });
+
+  final FirebaseApp firebaseApp;
+  final SetUiCallback onSetUi;
+  final UpdateUiCallback onUpdateUi;
+  final ErrorCallback onError;
+  final StatusUpdateCallback onStatusUpdate;
+  final ServerSpawner? serverSpawnerOverride;
+
+  rpc.Peer? _rpcPeer;
+  Isolate? _serverIsolate;
+  Completer<void>? _serverStartedCompleter;
+
+  Future<Isolate> _serverSpawner(
+      SendPort sendPort, FirebaseApp firebaseApp) async {
+    return await Isolate.spawn(
+      serverIsolate,
+      [sendPort, firebaseApp],
+    );
+  }
+
+  @override
+  Future<void> start() {
+    _serverStartedCompleter = Completer<void>();
+    unawaited(_startServer());
+    return _serverStartedCompleter!.future;
+  }
+
+  Future<void> _startServer() async {
+    onStatusUpdate('Starting server...');
+
+    final receivePort = ReceivePort();
+    _serverIsolate = await (serverSpawnerOverride ?? _serverSpawner)(
+        receivePort.sendPort, firebaseApp);
+
+    final channel = IsolateChannel<String>.connectReceive(receivePort);
+    _rpcPeer = rpc.Peer(channel);
+
+    _rpcPeer!.registerMethod('ui.set', (rpc.Parameters params) {
+      final definition = params.value as Map<String, Object?>;
+      onSetUi(definition);
+    });
+
+    _rpcPeer!.registerMethod('ui.update', (rpc.Parameters params) {
+      final updates = params.asList.cast<Map<String, Object?>>();
+      onUpdateUi(updates);
+    });
+
+    _rpcPeer!.registerMethod('ui.error', (rpc.Parameters params) {
+      onError(params['message'].asString);
+    });
+
+    _rpcPeer!.registerMethod('logging.log', (rpc.Parameters params) {
+      final severity = params['severity'].asString;
+      final message = params['message'].asString;
+      debugPrint('[$severity] $message');
+    });
+
+    unawaited(_rpcPeer!.listen());
+
+    await _rpcPeer!.sendRequest('ping');
+
+    onStatusUpdate('Server started.');
+    _serverStartedCompleter?.complete();
+  }
+
+  @override
+  void sendPrompt(String text) {
+    if (text.isNotEmpty) {
+      _rpcPeer?.sendNotification('prompt', {'text': text});
+      onStatusUpdate('Generating UI...');
+    }
+  }
+
+  @override
+  void sendUiEvent(Map<String, Object?> event) {
+    _rpcPeer?.sendNotification('ui.event', event);
+    onStatusUpdate('Generating UI...');
+  }
+
+  @override
+  void dispose() {
+    _rpcPeer?.close();
+    _serverIsolate?.kill();
+  }
+}
+
+@visibleForTesting
+typedef ServerConnectionFactory = ServerConnection Function({
+  required FirebaseApp firebaseApp,
+  required SetUiCallback onSetUi,
+  required UpdateUiCallback onUpdateUi,
+  required ErrorCallback onError,
+  required StatusUpdateCallback onStatusUpdate,
+  ServerSpawner? serverSpawnerOverride,
+});

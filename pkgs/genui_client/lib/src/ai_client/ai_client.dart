@@ -6,8 +6,8 @@ import 'dart:convert';
 
 import 'package:file/file.dart';
 import 'package:file/local.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:platform/platform.dart';
+import 'package:firebase_ai/firebase_ai.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../tools/tools.dart';
 
@@ -16,6 +16,8 @@ import '../tools/tools.dart';
 typedef GenerativeModelFactory = GenerativeModel Function({
   required AiClient configuration,
   Content? systemInstruction,
+  List<Tool>? tools,
+  ToolConfig? toolConfig,
 });
 
 enum AiLoggingSeverity { trace, debug, info, warning, error, fatal }
@@ -42,11 +44,9 @@ class AiClient {
   /// Creates an [AiClient] instance with specified configurations.
   ///
   /// - [model]: The identifier of the generative AI model to use.
-  /// - [platform]: The [Platform] instance for accessing environment variables.
+  /// - [firebaseApp]: The [FirebaseApp] to use for the connection.
   /// - [fileSystem]: The [FileSystem] instance for file operations, primarily
   ///   used by tools.
-  /// - [apiKey]: The API key for the generative AI service. If null, it's
-  ///   typically sourced from environment variables.
   /// - [modelCreator]: A factory function to create the [GenerativeModel].
   /// - [maxRetries]: Maximum number of retries for API calls on transient
   ///   errors.
@@ -59,10 +59,9 @@ class AiClient {
   /// - [outputToolName]: The name of the internal tool used to force structured
   ///   output from the AI.
   AiClient({
-    this.model = 'gemini-2.0-flash',
-    this.platform = const LocalPlatform(),
+    this.model = 'gemini-2.5-flash',
+    this.firebaseApp,
     this.fileSystem = const LocalFileSystem(),
-    this.apiKey,
     this.modelCreator = defaultGenerativeModelFactory,
     this.maxRetries = 8,
     this.initialDelay = const Duration(seconds: 1),
@@ -90,23 +89,13 @@ class AiClient {
   /// This identifier specifies which version or type of the generative AI model
   /// will be invoked for content generation.
   ///
-  /// Defaults to 'gemini-2.0-flash'.
+  /// Defaults to 'gemini-2.5-flash'.
   final String model;
 
-  /// The API key to use for accessing the Gemini model.
+  /// The [FirebaseApp] to use for the connection.
   ///
-  /// If this is provided, it will be used directly. If it's `null`, the
-  /// [defaultGenerativeModelFactory] (or a custom [modelCreator]) is expected
-  /// to attempt to retrieve the API key from an alternative source, such as the
-  /// `GEMINI_API_KEY` environment variable via the [platform] instance.
-  final String? apiKey;
-
-  /// The platform to use for accessing environment variables.
-  ///
-  /// This is can be used by the [modelCreator] to look up the `GEMINI_API_KEY`
-  /// if [apiKey] is not directly provided. Defaults to a [LocalPlatform]
-  /// instance, representing the current operating system environment.
-  final Platform platform;
+  /// If not supplied, the default Firebase app is used.
+  final FirebaseApp? firebaseApp;
 
   /// The file system to use for accessing files.
   ///
@@ -121,7 +110,7 @@ class AiClient {
   /// The maximum number of retries to attempt when generating content.
   ///
   /// If an API call to the generative model fails with a transient error (like
-  /// [GenerativeAISdkException] or [ServerException]), the client will attempt
+  /// [FirebaseAIException] or [ServerException]), the client will attempt
   /// to retry the call up to this many times.
   ///
   /// Defaults to 8 retries.
@@ -169,7 +158,8 @@ class AiClient {
   /// This factory function is responsible for instantiating the
   /// [GenerativeModel] used for AI interactions. It allows for customization of
   /// the model setup, such as using different HTTP clients, or for providing
-  /// mock models during testing. The factory receives this [AiClient] instance
+  /// mock models during testing.
+  /// The factory receives this [AiClient] instance
   /// as configuration.
   ///
   /// Defaults to a wrapper for the regular [GenerativeModel] constructor,
@@ -211,6 +201,7 @@ class AiClient {
   /// 1. Calling one of the available [AiTool]s (from [tools] or
   ///    [additionalTools]). If a tool is called, its `invoke` method is
   ///    executed, and the result is sent back to the AI in a subsequent
+  //
   ///    request.
   /// 2. Calling a special internal tool (named by [outputToolName]) whose
   ///    argument is the final structured data matching [outputSchema].
@@ -226,32 +217,29 @@ class AiClient {
     Iterable<AiTool> additionalTools = const [],
     Content? systemInstruction,
   }) async {
-    final model = modelCreator(
-      configuration: this,
-      systemInstruction: systemInstruction,
-    );
     return await _generateContentWithRetries(
-      model,
       prompts.toList(), // Don't want to modify original prompts.
       outputSchema,
       [...tools, ...additionalTools],
+      systemInstruction,
     );
   }
 
   /// The default factory function for creating a [GenerativeModel].
   ///
-  /// This function instantiates a standard [GenerativeModel] using the `model`
-  /// and `apiKey` (or `GEMINI_API_KEY` from the environment via `platform`)
-  /// from the provided [AiClient] `configuration`.
+  /// This function instantiates a standard [GenerativeModel] using the
+  /// `model` from the provided [AiClient] `configuration`.
   static GenerativeModel defaultGenerativeModelFactory({
     required AiClient configuration,
     Content? systemInstruction,
+    List<Tool>? tools,
+    ToolConfig? toolConfig,
   }) {
-    return GenerativeModel(
+    return FirebaseAI.googleAI(app: configuration.firebaseApp).generativeModel(
       model: configuration.model,
       systemInstruction: systemInstruction,
-      apiKey: configuration.apiKey ??
-          configuration.platform.environment['GEMINI_API_KEY']!,
+      tools: tools,
+      toolConfig: toolConfig,
     );
   }
 
@@ -268,10 +256,10 @@ class AiClient {
   }
 
   Future<T?> _generateContentWithRetries<T extends Object>(
-    GenerativeModel model,
     List<Content> contents,
     Schema outputSchema,
     List<AiTool> availableTools,
+    Content? systemInstruction,
   ) async {
     var attempts = 0;
     var delay = initialDelay;
@@ -296,10 +284,10 @@ class AiClient {
     while (attempts < maxTries) {
       try {
         final result = await _generateContentForcedToolCalling<T>(
-          model,
           contents,
           outputSchema,
           availableTools,
+          systemInstruction,
           // Reset the delay and attempts on success.
           () {
             delay = initialDelay;
@@ -307,11 +295,9 @@ class AiClient {
           },
         );
         return result;
-      } on GenerativeAISdkException catch (exception) {
-        await onFail(exception);
-      } on ServerException catch (exception) {
+      } on FirebaseAIException catch (exception) {
         if (exception.message.contains(
-          '${this.model} is not found for API version',
+          '$model is not found for API version',
         )) {
           // If the model is not found, then just throw an exception.
           throw AiClientException(exception.message);
@@ -332,11 +318,11 @@ class AiClient {
   }
 
   Future<T?> _generateContentForcedToolCalling<T extends Object>(
-    GenerativeModel model,
     // This list is modified to include tool calls and results.
     List<Content> contents,
     Schema outputSchema,
     List<AiTool> availableTools,
+    Content? systemInstruction,
     void Function() onSuccess,
   ) async {
     // Create an "output" tool that copies its args into the output.
@@ -349,7 +335,9 @@ class AiClient {
           'MUST call this tool when you are done.',
       // Wrap the outputSchema in an object so that the output schema isn't
       // limited to objects.
-      parameters: Schema.object(properties: {'output': outputSchema}),
+      parameters: Schema.object(
+        properties: {'output': outputSchema},
+      ),
       invokeFunction: (args) async => args, // Invoke is a pass-through
     );
     // Ensure allAiTools doesn't have duplicates by name, and prioritize the
@@ -373,11 +361,13 @@ class AiClient {
     // Registers tools under both their name and their fullName (if different),
     // because `toFunctionDeclarations` will return both declarations if they
     // are different.
-    final generativeAiTools = Tool(
-      functionDeclarations: [
-        ...uniqueAiToolsByName.values.map((t) => t.toFunctionDeclarations())
-      ].expand((e) => e).toList(),
-    );
+    final generativeAiTools = [
+      Tool.functionDeclarations(
+        [...uniqueAiToolsByName.values.map((t) => t.toFunctionDeclarations())]
+            .expand((e) => e)
+            .toList(),
+      )
+    ];
     final allowedFunctionNames = <String>{
       ...uniqueAiToolsByName.keys,
       ...toolFullNames,
@@ -386,6 +376,21 @@ class AiClient {
     var toolUsageCycle = 0;
     const maxToolUsageCycles = 40; // Safety break for tool loops
     T? capturedResult;
+
+    final model = modelCreator(
+      configuration: this,
+      systemInstruction: systemInstruction,
+      tools: generativeAiTools,
+      toolConfig: ToolConfig(
+        functionCallingConfig: FunctionCallingConfig.any(
+          allowedFunctionNames.toSet(),
+        ),
+      ),
+    );
+
+    final chat = model.startChat(
+      history: contents,
+    );
 
     while (toolUsageCycle < maxToolUsageCycles && capturedResult == null) {
       toolUsageCycle++;
@@ -397,24 +402,17 @@ class AiClient {
         'With functions: '
         '${allowedFunctionNames.join(', ')}',
       );
-      final response = await model.generateContent(
-        contents,
-        toolConfig: ToolConfig(
-          functionCallingConfig: FunctionCallingConfig(
-            mode: FunctionCallingMode.any,
-            allowedFunctionNames: allowedFunctionNames,
-          ),
-        ),
-        tools: [generativeAiTools],
-      );
+      final response = await chat.sendMessage(contents.last);
 
       // If the generate call succeeds, we need to reset the delay for the next
       // retry. If the generate call throws, this won't get called, and the
       // delay will double.
       onSuccess();
 
-      inputTokenUsage += response.usageMetadata?.promptTokenCount ?? 0;
-      outputTokenUsage += response.usageMetadata?.candidatesTokenCount ?? 0;
+      if (response.usageMetadata != null) {
+        inputTokenUsage += response.usageMetadata!.promptTokenCount ?? 0;
+        outputTokenUsage += response.usageMetadata!.candidatesTokenCount ?? 0;
+      }
 
       if (response.candidates.isEmpty) {
         _warn('Response has no candidates: ${response.promptFeedback}');
@@ -484,7 +482,6 @@ class AiClient {
         // to the history so it knows what it asked for.
         contents.add(candidate.content);
         contents.add(Content.functionResponses(functionResponseParts));
-        contents.add(_toolResultsFollowUpPrompt(outputToolName));
       }
     }
     if (capturedResult == null) {
@@ -494,16 +491,5 @@ class AiClient {
       );
     }
     return capturedResult;
-  }
-
-  Content _toolResultsFollowUpPrompt(String finalOutputToolName) {
-    return Content.text(
-      '''You have received results from previous tool calls. Your next action MUST be a tool call
-Evaluate the information you have: '
-1. If you are completely finished and have all information to provide the final answer according to the schema, you MUST call the `$finalOutputToolName` tool with the final answer. This is the ONLY way to signal completion.
-2. If you need more information or need to perform another action before the final answer, you MUST call another appropriate tool from the available list.
-Do NOT repeat previous tool calls if they were successful and the results are sufficient.
-Do NOT respond with plain text. You must call a tool. The final tool call in your entire process MUST be `$finalOutputToolName`.''',
-    );
   }
 }
