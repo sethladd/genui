@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../sdk/model/genui_controller.dart';
+import '../sdk/agent/agent.dart';
+import '../sdk/catalog/shared/genui_widget.dart';
+
+import '../sdk/model/controller.dart';
 import '../sdk/model/input.dart';
-import '../sdk/agent/genui_widget.dart';
 import '../sdk/model/simple_items.dart';
 
 class MyApp extends StatelessWidget {
@@ -15,7 +17,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: _appTitle,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
       home: const _MyHomePage(),
     );
@@ -32,10 +34,24 @@ class _MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<_MyHomePage> {
-  final GenUiController _controller = GenUiController(
-    imageCatalog: _myImageCatalog,
-    agentIconAsset: 'assets/agent_icon.png',
-  );
+  final _scrollController = ScrollController();
+
+  late final GenUiAgent _agent = GenUiAgent(
+    GenUiController(
+      _scrollController,
+      imageCatalog: _myImageCatalog,
+      agentIconAsset: 'assets/agent_icon.png',
+    ),
+  )..run();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _agent.controller.state.input.complete(
+      InitialInput('Show invitations to create a vacation travel itinerary.'),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,10 +69,11 @@ class _MyHomePageState extends State<_MyHomePage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: GenUi.invitation(
-            initialPrompt: 'Invite user to create a vacation travel itinerary.',
-            controller: _controller,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            child: GenUiWidget(_agent.controller),
           ),
         ),
       ),
@@ -65,7 +82,8 @@ class _MyHomePageState extends State<_MyHomePage> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _agent.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 }

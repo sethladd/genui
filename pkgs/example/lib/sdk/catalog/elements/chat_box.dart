@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-
-import '../../model/genui_controller.dart';
-import '../../model/simple_items.dart';
+import '../../model/input.dart';
 
 class ChatBox extends StatefulWidget {
-  ChatBox(this.controller, {super.key, this.fakeInput = ''});
+  ChatBox(this.onInput, {super.key});
 
-  final GenUiController controller;
-  final String fakeInput;
+  final UserInputCallback onInput;
+
+  /// Fake input to simulate pre-filled text in the chat box.
+  ///
+  /// TODO(polina-c): Remove this in productized version.
+  final String fakeInput =
+      'I have 3 days in Zermatt with my wife and 11 year old daughter, '
+      'and I am wondering how to make the most out of our time.';
 
   @override
   State<ChatBox> createState() => _ChatBoxState();
@@ -16,14 +20,18 @@ class ChatBox extends StatefulWidget {
 class _ChatBoxState extends State<ChatBox> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  bool _isSubmitted = false;
 
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(() {
-      if (widget.fakeInput.isNotEmpty) {
-        _controller.text = widget.fakeInput;
-        setState(() {});
+      // Reset the input on focus.
+      if (widget.fakeInput.isNotEmpty &&
+          !_isSubmitted &&
+          _focusNode.hasFocus &&
+          _controller.text.isEmpty) {
+        setState(() => _controller.text = widget.fakeInput);
       }
     });
   }
@@ -33,15 +41,15 @@ class _ChatBoxState extends State<ChatBox> {
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
+      enabled: !_isSubmitted,
       decoration: InputDecoration(
         hintText: 'Ask me anything',
         border: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(25.0)),
         ),
-        suffixIcon: IconButton(
-          icon: const Icon(Icons.send),
-          onPressed: _submit,
-        ),
+        suffixIcon: _isSubmitted
+            ? null
+            : IconButton(icon: const Icon(Icons.send), onPressed: _submit),
       ),
       maxLines: null, // Allows for multi-line input
       keyboardType: TextInputType.multiline,
@@ -52,7 +60,9 @@ class _ChatBoxState extends State<ChatBox> {
 
   void _submit() {
     final inputText = _controller.text.trim();
-    // widget.controller.handleInput(GenUiAgent.instance.createInput(inputText));
+    _focusNode.unfocus();
+    setState(() => _isSubmitted = true);
+    widget.onInput(ChatBoxInput(inputText));
   }
 
   @override

@@ -1,24 +1,72 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
+import '../catalog/messages/elicitation.dart';
 import '../catalog/messages/invitation.dart';
-import '../model/genui_controller.dart';
-import '../model/simple_items.dart';
-import 'fake_output.dart';
+import '../model/controller.dart';
 import '../model/input.dart';
+import '../model/simple_items.dart';
+import '../primitives/utils.dart';
+import 'fake_output.dart';
 
 class GenUiAgent {
-  final GenUiController controller;
-
   GenUiAgent(this.controller);
 
-  Future<WidgetBuilder> request(Input input) async {
-    // Simulate network delay
+  GenUiController controller;
+
+  void run() => _startCycle();
+
+  Future<void> _startCycle() async {
+    while (true) {
+      await _handleNextInput();
+    }
+  }
+
+  void dispose() {
+    // TODO: stop cycle
+  }
+
+  Future<void> _handleNextInput() async {
+    final input = await controller.state.input.future;
+
+    // Simulate network delay.
     await Future<void>.delayed(const Duration(milliseconds: 1000));
-    return switch (input) {
-      InvitationInput _ => (_) => Invitation(fakeInvitationData, controller),
-      _ => throw UnimplementedError(
-        'GenUiAgent does not support input of type ${input.runtimeType}',
-      ),
-    };
+
+    late final WidgetData data;
+    late final WidgetBuilder builder;
+
+    switch (input) {
+      case InitialInput():
+        data = fakeInvitationData;
+        builder = (_) => Invitation(fakeInvitationData, controller);
+      case ChatBoxInput():
+        data = fakeElicitationData;
+        builder = (_) => Elicitation(fakeElicitationData, controller);
+      default:
+        throw UnimplementedError(
+          'The agent does not support input of type ${input.runtimeType}',
+        );
+    }
+
+    final newInput = await controller.state.input.future;
+    if (newInput != input) {
+      // If the input has changed, we throw away the results.
+      return;
+    }
+
+    // Provide the builder for the widget that wait for it.
+    controller.state.builder.complete(builder);
+
+    // Move the input and data to the history.
+    controller.state.history.add((input: input, data: data));
+
+    // Reset the input completer for the next input.
+    controller.state.input = Completer<Input>();
+    controller.state.builder = Completer<WidgetBuilder>();
+
+    // Scroll to the bottom after the widget is built
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await scrollToBottom(controller.scrollController);
   }
 }

@@ -1,31 +1,50 @@
 import 'package:flutter/material.dart';
 
-import '../../model/genui_controller.dart';
+import '../../model/controller.dart';
+import '../../model/input.dart';
 import '../../model/simple_items.dart';
-import '../elements/agent_icon.dart';
+import '../elements/filter.dart';
 import '../elements/text_intro.dart';
+import '../shared/genui_widget.dart';
 
-class Elicitation extends StatelessWidget {
+class Elicitation extends StatefulWidget {
   final ElicitationData data;
   final GenUiController controller;
 
-  const Elicitation({super.key, required this.data, required this.controller});
+  const Elicitation(this.data, this.controller, {super.key});
+
+  @override
+  State<Elicitation> createState() => _ElicitationState();
+}
+
+class _ElicitationState extends State<Elicitation> {
+  final ValueNotifier<UserInput?> _input = ValueNotifier(null);
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AgentIcon(controller),
+        widget.controller.icon(width: 40, height: 40),
         const SizedBox(height: 8.0),
-        const Text('filter will be here'),
+        TextIntro(widget.data.textIntroData),
+        const SizedBox(height: 16.0),
+        Filter(widget.data.filterData),
+
+        const SizedBox(height: 16.0),
+        GenUiWidget(widget.controller),
       ],
     );
+  }
+
+  void onInput(UserInput input) {
+    _input.value = input;
   }
 }
 
 class ElicitationData extends WidgetData {
   final TextIntroData textIntroData;
+  final FilterData filterData;
 
-  ElicitationData({required this.textIntroData});
+  ElicitationData({required this.filterData, required this.textIntroData});
 }
