@@ -1,7 +1,9 @@
-import 'package:example/sdk/agent/input.dart';
-import 'package:example/sdk/agent/widget.dart';
-import 'package:example/sdk/model/simple_items.dart';
 import 'package:flutter/material.dart';
+
+import '../sdk/model/genui_controller.dart';
+import '../sdk/model/input.dart';
+import '../sdk/agent/genui_widget.dart';
+import '../sdk/model/simple_items.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -32,22 +34,22 @@ class _MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<_MyHomePage> {
   final GenUiController _controller = GenUiController(
     imageCatalog: _myImageCatalog,
-    agentIcon: 'assets/agent_icon.png',
+    agentIconAsset: 'assets/agent_icon.png',
   );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: Icon(Icons.menu),
-        title: Row(
-          children: const <Widget>[
+        leading: const Icon(Icons.menu),
+        title: const Row(
+          children: <Widget>[
             Icon(Icons.chat_bubble_outline),
             SizedBox(width: 8.0), // Add spacing between icon and text
             Text('Chat'),
           ],
         ),
-        actions: [Icon(Icons.person_outline), SizedBox(width: 8.0)],
+        actions: [const Icon(Icons.person_outline), const SizedBox(width: 8.0)],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

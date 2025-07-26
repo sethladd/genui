@@ -1,22 +1,21 @@
-import 'package:example/sdk/agent/fake_output.dart';
-import 'package:example/sdk/agent/input.dart';
-import 'package:example/sdk/catalog/invitation.dart';
-import 'package:example/sdk/model/simple_items.dart';
 import 'package:flutter/widgets.dart';
 
+import '../catalog/messages/invitation.dart';
+import '../model/genui_controller.dart';
+import '../model/simple_items.dart';
+import 'fake_output.dart';
+import '../model/input.dart';
+
 class GenUiAgent {
-  static final GenUiAgent instance = GenUiAgent._();
+  final GenUiController controller;
 
-  GenUiAgent._();
+  GenUiAgent(this.controller);
 
-  Future<WidgetBuilder> request(Input input, GenUiController controller) async {
+  Future<WidgetBuilder> request(Input input) async {
     // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
     return switch (input) {
-      InvitationInput _ => (_) => Invitation(
-        data: fakeInvitationData,
-        controller: controller,
-      ),
+      InvitationInput _ => (_) => Invitation(fakeInvitationData, controller),
       _ => throw UnimplementedError(
         'GenUiAgent does not support input of type ${input.runtimeType}',
       ),
