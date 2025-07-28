@@ -3,68 +3,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  final testRegistry = WidgetRegistry()
-    ..register(
-      'Container',
-      (context, node, properties, children) =>
-          Container(child: children['child'] as Widget?),
-    )
-    ..register(
-      'Text',
-      (context, node, properties, children) =>
-          Text(properties['data'] as String? ?? ''),
-    )
-    ..register(
-      'Column',
-      (context, node, properties, children) =>
-          Column(children: (children['children'] as List<Widget>?) ?? []),
-    );
-
-  final testManifest = WidgetLibraryManifest({
-    'manifestVersion': '1.0.0',
-    'dataTypes': {},
-    'widgets': {
-      'Container': {
-        'properties': {
-          'child': {'type': 'Widget'},
-        },
-      },
-      'Text': {
-        'properties': {
-          'data': {'type': 'String'},
-        },
-      },
-      'Column': {
-        'properties': {
-          'children': {'type': 'List<Widget>'},
-        },
-      },
-      'ListViewBuilder': {
-        'properties': {
-          'data': {'type': 'List'},
-          'itemTemplate': {'type': 'Widget'},
-        },
-      },
-    },
-  });
-
-  DynamicUIPacket createPacket(
-    Map<String, Object?> layout, [
-    Map<String, Object?>? state,
-  ]) {
-    return DynamicUIPacket({
-      'formatVersion': '1.0.0',
-      'layout': layout,
-      'state': state ?? {'title': 'Test Title'},
-    });
-  }
-
   group('ListViewBuilder', () {
-    testWidgets('renders a list of items from state', (
+    testWidgets('builds a list of items from state', (
       WidgetTester tester,
     ) async {
-      final packet = createPacket(
-        {
+      final registry = WidgetCatalogRegistry()
+        ..register(
+          CatalogItem(
+            name: 'ListViewBuilder',
+            builder: (context, node, properties, children) =>
+                const SizedBox.shrink(),
+            definition: WidgetDefinition({
+              'properties': {},
+              'bindings': {
+                'data': {'path': 'string'},
+              },
+            }),
+          ),
+        )
+        ..register(
+          CatalogItem(
+            name: 'Text',
+            builder: (context, node, properties, children) {
+              return Text(
+                properties['data'] as String? ?? '',
+                textDirection: TextDirection.ltr,
+              );
+            },
+            definition: WidgetDefinition({
+              'properties': {
+                'data': {'type': 'String'},
+              },
+            }),
+          ),
+        );
+      final catalog = registry.buildCatalog(catalogVersion: '1.0.0');
+
+      final packet = DynamicUIPacket({
+        'formatVersion': '1.0.0',
+        'layout': {
           'root': 'my_list',
           'nodes': [
             {
@@ -83,36 +60,64 @@ void main() {
             },
           ],
         },
-        {
+        'state': {
           'items': [
-            {'name': 'Item 1'},
-            {'name': 'Item 2'},
-            {'name': 'Item 3'},
+            {'name': 'Apple'},
+            {'name': 'Banana'},
+            {'name': 'Cherry'},
           ],
         },
-      );
+      });
 
       await tester.pumpWidget(
         MaterialApp(
-          home: FcpView(
-            packet: packet,
-            registry: testRegistry,
-            manifest: testManifest,
-          ),
+          home: FcpView(packet: packet, catalog: catalog, registry: registry),
         ),
       );
 
-      expect(find.byType(ListView), findsOneWidget);
-      expect(find.text('Item 1'), findsOneWidget);
-      expect(find.text('Item 2'), findsOneWidget);
-      expect(find.text('Item 3'), findsOneWidget);
+      expect(find.text('Apple'), findsOneWidget);
+      expect(find.text('Banana'), findsOneWidget);
+      expect(find.text('Cherry'), findsOneWidget);
     });
 
-    testWidgets('displays error if itemTemplate is missing', (
+    testWidgets('itemTemplate bindings are resolved correctly', (
       WidgetTester tester,
     ) async {
-      final packet = createPacket(
-        {
+      final registry = WidgetCatalogRegistry()
+        ..register(
+          CatalogItem(
+            name: 'ListViewBuilder',
+            builder: (context, node, properties, children) =>
+                const SizedBox.shrink(),
+            definition: WidgetDefinition({
+              'properties': {},
+              'bindings': {
+                'data': {'path': 'string'},
+              },
+            }),
+          ),
+        )
+        ..register(
+          CatalogItem(
+            name: 'Text',
+            builder: (context, node, properties, children) {
+              return Text(
+                properties['data'] as String? ?? '',
+                textDirection: TextDirection.ltr,
+              );
+            },
+            definition: WidgetDefinition({
+              'properties': {
+                'data': {'type': 'String'},
+              },
+            }),
+          ),
+        );
+      final catalog = registry.buildCatalog(catalogVersion: '1.0.0');
+
+      final packet = DynamicUIPacket({
+        'formatVersion': '1.0.0',
+        'layout': {
           'root': 'my_list',
           'nodes': [
             {
@@ -121,28 +126,30 @@ void main() {
               'bindings': {
                 'data': {'path': 'items'},
               },
+              'itemTemplate': {
+                'id': 'item_template',
+                'type': 'Text',
+                'bindings': {
+                  'data': {'path': 'item.name', 'format': 'Fruit: {}'},
+                },
+              },
             },
           ],
         },
-        {'items': []},
-      );
+        'state': {
+          'items': [
+            {'name': 'Apple'},
+          ],
+        },
+      });
 
       await tester.pumpWidget(
         MaterialApp(
-          home: FcpView(
-            packet: packet,
-            registry: testRegistry,
-            manifest: testManifest,
-          ),
+          home: FcpView(packet: packet, catalog: catalog, registry: registry),
         ),
       );
 
-      expect(
-        find.text(
-          'FCP Error: ListViewBuilder "my_list" is missing itemTemplate.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Fruit: Apple'), findsOneWidget);
     });
   });
 }

@@ -13,8 +13,8 @@ Our journey began with a clear goal: implement the first milestone of the Flutte
 **Implementation Steps:**
 
 1. **Project Scaffolding:** I began by creating the necessary directory structure (`lib/src/models`, `lib/src/core`, `lib/src/widgets`).
-2. **Core Data Models:** I implemented all the core FCP data structures (`DynamicUIPacket`, `WidgetNode`, etc.) as Dart extension types, providing a type-safe API without requiring code generation.
-3. **Services:** I created the `ManifestService` to load and parse the client's capabilities manifest and a `WidgetRegistry` to map widget type strings to Flutter builder functions.
+2. **Core Data Models:** I implemented all the core FCP data structures (`DynamicUIPacket`, `LayoutNode`, etc.) as Dart extension types, providing a type-safe API without requiring code generation.
+3. **Services:** I created the `CatalogService` to load and parse the client's capabilities catalog and a `CatalogRegistry` to map widget type strings to Flutter builder functions.
 4. **Static Layout Engine:** I built the central `FcpView` widget and its internal `_LayoutEngine`. This engine was responsible for recursively parsing the layout's node list and constructing the Flutter widget tree, initially only for static, non-interactive UIs.
 
 ## Milestone 1.5: Comprehensive Testing & Edge Cases
@@ -27,7 +27,7 @@ With the initial implementation complete, the focus shifted to ensuring its corr
 
 **Implementation & Debugging:**
 
-1. **Unit & Widget Tests:** I created a suite of unit tests for the data models and the `ManifestService`. I also created widget tests for the `FcpView` to verify that it could correctly render simple and nested layouts.
+1. **Unit & Widget Tests:** I created a suite of unit tests for the data models and the `CatalogService`. I also created widget tests for the `FcpView` to verify that it could correctly render simple and nested layouts.
 2. **Initial Bug Fixes:** The new tests immediately uncovered several issues:
    - A missing `FlutterError` import in a test file.
    - Incorrectly mocked platform channels for asset loading, which led to a series of fixes to get the mocking right.
@@ -97,7 +97,7 @@ With a solid, static foundation, we moved on to making the UI dynamic.
 
 1. **State & Binding Services:** I began by creating the `FcpState` class (using `ChangeNotifier`) to hold the dynamic UI data and the `BindingProcessor` service to resolve data paths and apply transformations (`format`, `condition`, `map`). I created unit tests for both immediately.
 2. **Data Model Expansion:** I added the `Binding`, `Condition`, and `MapTransformer` models to `lib/src/models/models.dart` to provide type-safe access to binding definitions.
-3. **Breaking Change - WidgetBuilder Signature:** To pass resolved properties to widgets, I made a necessary breaking change to the `FcpWidgetBuilder` typedef, changing its signature to include a `Map<String, Object?> properties` parameter.
+3. **Breaking Change - FcpWidgetBuilder Signature:** To pass resolved properties to widgets, I made a necessary breaking change to the `FcpWidgetBuilder` typedef, changing its signature to include a `Map<String, Object?> properties` parameter.
 4. **Engine Refactor:** I refactored the `_LayoutEngine` inside `FcpView`.
    - It now takes the `FcpState` and `BindingProcessor` as inputs.
    - The old widget cache was removed, as widgets now need to rebuild when state changes.
@@ -219,11 +219,11 @@ This milestone focused on implementing the final features of the FCP specificati
    - I added a new widget test file (`list_view_builder_test.dart`) and updated the example app to include a list of "Cosmic Facts".
 2. **Data Type Validation:**
    - I searched pub.dev and selected the `json_schema` package for validation.
-   - I created a `DataTypeValidator` service to wrap the package and integrated it into `FcpState`. The state is now validated against schemas in the `WidgetLibraryManifest` whenever it's updated.
+   - I created a `DataTypeValidator` service to wrap the package and integrated it into `FcpState`. The state is now validated against schemas in the `WidgetCatalog` whenever it's updated.
    - This required a significant refactoring of the `FcpState` constructor and all the test files that used it, which surfaced a number of latent type errors that were subsequently fixed.
 3. **Robust Error Handling:**
    - I updated the `BindingProcessor` to print a debug message when a binding path resolves to `null`, making it easier to debug broken bindings.
-   - I enhanced the `_LayoutEngine` to validate nodes against the `WidgetLibraryManifest`, adding checks to ensure a widget type exists and that all its required properties are present. If a violation is found, the engine now renders a descriptive `_ErrorWidget` instead of crashing.
+   - I enhanced the `_LayoutEngine` to validate nodes against the `WidgetCatalog`, adding checks to ensure a widget type exists and that all its required properties are present. If a violation is found, the engine now renders a descriptive `_ErrorWidget` instead of crashing.
 4. **Test Coverage Review:**
    - Finally, I did a full review of the unit tests, adding new tests for edge cases like empty `dataTypes` maps, updating non-existent nodes in a `LayoutUpdate`, and `map` transformers with no `fallback`. This ensures the core services are resilient.
 
@@ -277,16 +277,16 @@ The key components of the FCP design are realized in the following classes:
 
 - **The FCP Interpreter (`FcpView` & `_LayoutEngine`):** The `FcpView` widget is the main entry point that orchestrates the rendering process. Internally, the `_LayoutEngine` is the core interpreter that walks the `Layout`'s node list, resolves dependencies, and constructs the final widget tree.
 
-- **The Manifest (`WidgetLibraryManifest`, `WidgetRegistry`, `ManifestService`):** The client's capabilities are defined by registering `FcpWidgetBuilder` functions in the `WidgetRegistry`. This registry is the concrete implementation of the "contract" defined by the `WidgetLibraryManifest` model, which can be loaded from assets using the `ManifestService`.
+- **The Catalog (`WidgetCatalog`, `CatalogRegistry`, `CatalogService`):** The client's capabilities are defined by registering `FcpWidgetBuilder` functions in the `CatalogRegistry`. This registry is the concrete implementation of the "contract" defined by the `WidgetCatalog` model, which can be loaded from assets using the `CatalogService`.
 
-- **The Layout (`Layout`, `WidgetNode`):** The non-recursive, adjacency-list structure of the UI is represented by the `Layout` and `WidgetNode` data models, which are built by the `_LayoutEngine`.
+- **The Layout (`Layout`, `LayoutNode`):** The non-recursive, adjacency-list structure of the UI is represented by the `Layout` and `LayoutNode` data models, which are built by the `_LayoutEngine`.
 
-- **The State & Data Model (`FcpState`, `DataTypeValidator`):** The dynamic data for the UI is held and managed by the `FcpState` class, which acts as the client-side "source of truth." The `DataTypeValidator` enforces the `dataTypes` schemas from the manifest, ensuring state integrity.
+- **The State & Data Model (`FcpState`, `DataTypeValidator`):** The dynamic data for the UI is held and managed by the `FcpState` class, which acts as the client-side "source of truth." The `DataTypeValidator` enforces the `dataTypes` schemas from the catalog, ensuring state integrity.
 
-- **Data Binding (`BindingProcessor`):** This service is the crucial link between layout and state. It resolves binding paths from `WidgetNode`s against the `FcpState` and applies the declarative `format`, `condition`, and `map` transformations.
+- **Data Binding (`BindingProcessor`):** This service is the crucial link between layout and state. It resolves binding paths from `LayoutNode`s against the `FcpState` and applies the declarative `format`, `condition`, and `map` transformations.
 
 - **Targeted Updates (`FcpViewController`, `StatePatcher`, `LayoutPatcher`):** The full data flow for live updates is implemented. The `FcpViewController` provides an external API to send `StateUpdate` and `LayoutUpdate` payloads, which are processed by the `StatePatcher` (using `json_patch`) and `LayoutPatcher` services, respectively, to trigger efficient UI rebuilds.
 
-- **Error Handling (`_ErrorWidget`):** In alignment with the specification's best practices, the `_LayoutEngine` performs validation during the build process and renders a descriptive `_ErrorWidget` in place of any component that violates the manifest contract (e.g., unknown widget type, missing required property), preventing crashes and improving debuggability.
+- **Error Handling (`_ErrorWidget`):** In alignment with the specification's best practices, the `_LayoutEngine` performs validation during the build process and renders a descriptive `_ErrorWidget` in place of any component that violates the catalog contract (e.g., unknown widget type, missing required property), preventing crashes and improving debuggability.
 
 - **Example & Test Fixtures:** The package includes a comprehensive `example` app that showcases all major features and a minimal `test_fixtures/m1_integration` app for running integration tests, demonstrating real-world usage and ensuring correctness.

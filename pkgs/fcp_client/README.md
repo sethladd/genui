@@ -8,7 +8,7 @@ The Flutter Composition Protocol (FCP) is a framework for building UIs where the
 
 The core philosophy is a strict decoupling of:
 
-- **The Manifest:** A contract defining the client's capabilities (widgets, properties, etc.).
+- **The Catalog:** A contract defining the client's capabilities (widgets, properties, etc.).
 - **The Layout:** The structure and arrangement of widgets.
 - **The State:** The dynamic data that populates the layout.
 
@@ -17,7 +17,7 @@ This package provides the tools to parse these components and render a complete 
 ## Features
 
 - **JSON to Widget Rendering:** Dynamically build a Flutter UI from a JSON `DynamicUIPacket`.
-- **Extensible Widget Registry:** Register your own custom Flutter widgets to be used in the dynamic UI.
+- **Extensible Catalog Registry:** Register your own custom Flutter widgets to be used in the dynamic UI.
 - **Static Layout Engine:** Efficiently builds the widget tree from a non-recursive, flat adjacency list of nodes.
 - **Event Handling:** A mechanism to capture and handle user interactions (e.g., button presses) and send them to a backend or state management layer.
 - **Robust Error Handling:** Gracefully handles errors like missing widgets or cyclical layouts and displays a clear error UI instead of crashing.
@@ -50,7 +50,7 @@ class SimpleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 1. Create a registry and register the widgets your UI will use.
-    final registry = WidgetRegistry()
+    final registry = CatalogRegistry()
       ..register('Scaffold', (context, node, children) => Scaffold(body: children.first))
       ..register('Center', (context, node, children) => Center(child: children.first))
       ..register('Text', (context, node, children) {
@@ -77,7 +77,7 @@ class SimpleApp extends StatelessWidget {
         registry: registry,
         packet: uiPacket,
         onEvent: (payload) {
-          print('Event received from ${payload.sourceWidgetId}: ${payload.eventName}');
+          print('Event received from ${payload.sourceNodeId}: ${payload.eventName}');
         },
       ),
     );

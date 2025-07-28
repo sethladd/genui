@@ -9,20 +9,20 @@ extension type JsonObject(Map<String, Object?> _json) {
 // Milestone 1: Core Data Models
 
 // -----------------------------------------------------------------------------
-// Manifest-related Models
+// Catalog-related Models
 // -----------------------------------------------------------------------------
 
-/// A type-safe wrapper for the `WidgetLibraryManifest` JSON object.
+/// A type-safe wrapper for the `WidgetCatalog` JSON object.
 ///
-/// The manifest is a client-defined document that specifies which widgets,
+/// The catalog is a client-defined document that specifies which widgets,
 /// properties, events, and data structures the application is capable of
 /// handling. It serves as a strict contract between the client and the server.
-extension type WidgetLibraryManifest(Map<String, Object?> _json) {
-  String get manifestVersion => _json['manifestVersion'] as String;
+extension type WidgetCatalog(Map<String, Object?> _json) {
+  String get catalogVersion => _json['catalogVersion'] as String;
   Map<String, Object?> get dataTypes =>
       _json['dataTypes'] as Map<String, Object?>;
-  Map<String, Object?> get widgets =>
-      (_json['widgets'] as Map).cast<String, Object?>();
+  Map<String, Object?> get items =>
+      (_json['items'] as Map).cast<String, Object?>();
 }
 
 /// A type-safe wrapper for a `WidgetDefinition` JSON object.
@@ -37,7 +37,8 @@ extension type WidgetDefinition(Map<String, Object?> _json) {
 
 /// A type-safe wrapper for a `PropertyDefinition` JSON object.
 ///
-/// This object specifies the type and constraints for a single widget property.
+/// This object specifies the type and constraints for a single widget
+/// property.
 extension type PropertyDefinition(Map<String, Object?> _json) {
   String get type => _json['type'] as String;
   List<String>? get values =>
@@ -68,18 +69,18 @@ extension type DynamicUIPacket(Map<String, Object?> _json) {
 /// where parent-child relationships are established through ID references.
 extension type Layout(Map<String, Object?> _json) {
   String get root => _json['root'] as String;
-  List<WidgetNode> get nodes {
+  List<LayoutNode> get nodes {
     final nodeList = _json['nodes'] as List<Object?>;
-    return nodeList.cast<Map<String, Object?>>().map(WidgetNode.new).toList();
+    return nodeList.cast<Map<String, Object?>>().map(LayoutNode.new).toList();
   }
 }
 
-/// A type-safe wrapper for a `WidgetNode` JSON object.
+/// A type-safe wrapper for a `LayoutNode` JSON object.
 ///
-/// A widget node represents a single widget instance in the layout, including
-/// its type, properties, and data bindings.
-extension type WidgetNode(Map<String, Object?> _json) {
-  WidgetNode.fromJson(Map<String, Object?> json) : this(json);
+/// A layout node represents a single widget instance in the layout,
+/// including its type, properties, and data bindings.
+extension type LayoutNode(Map<String, Object?> _json) {
+  LayoutNode.fromJson(Map<String, Object?> json) : this(json);
 
   String get id => _json['id'] as String;
   String get type => _json['type'] as String;
@@ -92,9 +93,9 @@ extension type WidgetNode(Map<String, Object?> _json) {
     );
   }
 
-  WidgetNode? get itemTemplate {
+  LayoutNode? get itemTemplate {
     final templateJson = _json['itemTemplate'] as Map<String, Object?>?;
-    return templateJson != null ? WidgetNode(templateJson) : null;
+    return templateJson != null ? LayoutNode(templateJson) : null;
   }
 }
 
@@ -107,7 +108,7 @@ extension type WidgetNode(Map<String, Object?> _json) {
 /// This payload is sent from the client to the server when a user interaction
 /// occurs, such as a button press.
 extension type EventPayload(Map<String, Object?> _json) {
-  String get sourceWidgetId => _json['sourceWidgetId'] as String;
+  String get sourceNodeId => _json['sourceNodeId'] as String;
   String get eventName => _json['eventName'] as String;
   Map<String, Object?>? get arguments =>
       _json['arguments'] as Map<String, Object?>?;
@@ -121,7 +122,8 @@ extension type StateUpdate(Map<String, Object?> _json) {
 }
 
 /// A type-safe wrapper for a `LayoutUpdate` payload, which delivers surgical
-/// modifications to the UI's structure (e.g., adding or removing widgets).
+/// modifications to the UI's structure (e.g., adding or removing catalog
+/// items).
 extension type LayoutUpdate(Map<String, Object?> _json) {
   List<LayoutOperation> get operations {
     final opsList = _json['operations'] as List<Object?>;
@@ -138,30 +140,31 @@ extension type LayoutOperation(Map<String, Object?> _json) {
   String get op => _json['op'] as String;
 
   // For 'add' and 'update'
-  List<WidgetNode>? get nodes {
+  List<LayoutNode>? get nodes {
     final nodeList = _json['nodes'] as List<Object?>?;
-    return nodeList?.cast<Map<String, Object?>>().map(WidgetNode.new).toList();
+    return nodeList?.cast<Map<String, Object?>>().map(LayoutNode.new).toList();
   }
 
   // For 'remove'
-  List<String>? get ids {
-    final idList = _json['ids'] as List<Object?>?;
+  List<String>? get nodeIds {
+    final idList = _json['nodeIds'] as List<Object?>?;
     return idList?.cast<String>();
   }
 
   // For 'add'
-  String? get targetId => _json['targetId'] as String?;
+  String? get targetNodeId => _json['targetNodeId'] as String?;
   String? get targetProperty => _json['targetProperty'] as String?;
 }
 
 // -----------------------------------------------------------------------------
-// Milestone 2: State & Binding Models
+// State & Binding Models
 // -----------------------------------------------------------------------------
 
 /// A type-safe wrapper for a `Binding` JSON object.
 ///
-/// A binding forges the connection between a widget property in the layout and
-/// a value in the state object, with optional client-side transformations.
+/// A binding forges the connection between a widget property in the
+/// layout and a value in the state object, with optional client-side
+/// transformations.
 extension type Binding(Map<String, Object?> _json) {
   Binding.fromJson(Map<String, Object?> json) : this(json);
 
