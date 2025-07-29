@@ -27,14 +27,11 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
+          'DefaultFirebaseOptions have not been configured for linux because '
+          "Firebase AI Logic isn't supported on Linux",
         );
       default:
         throw UnsupportedError(
@@ -70,4 +67,22 @@ class DefaultFirebaseOptions {
     measurementId: 'G-D2FN00RSD9',
   );
 
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCxByPgKNTJc4Gc5N0w2l-I5ffE-dWkVKg',
+    appId: '1:975757934897:ios:540a1a4eeeb57afb0ff010',
+    messagingSenderId: '975757934897',
+    projectId: 'fluttergenui',
+    storageBucket: 'fluttergenui.firebasestorage.app',
+    iosBundleId: 'dev.flutter.genui.genuiClient',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBZwqYvj1Qe2odTlesCrD6tI7ZUzkax5BA',
+    appId: '1:975757934897:web:0152927eeb6b30320ff010',
+    messagingSenderId: '975757934897',
+    projectId: 'fluttergenui',
+    authDomain: 'fluttergenui.firebaseapp.com',
+    storageBucket: 'fluttergenui.firebasestorage.app',
+    measurementId: 'G-Z3D9Q293KS',
+  );
 }
