@@ -54,13 +54,15 @@ class _DynamicUiState extends State<DynamicUi> {
   }
 
   /// The main recursive build function.
-  /// It reads a widget definition and its current state from [_widgetStates]
+  /// It reads a widget definition and its current state from
+  /// `widget.definition`
   /// and constructs the corresponding Flutter widget.
   Widget _buildWidget(String widgetId) {
     return widget.catalog.buildWidget(
-        widget.definition.widgets[widgetId]! as Map<String, Object?>,
-        _buildWidget,
-        _dispatchEvent,
-        context);
+      widget.definition.widgets[widgetId]! as Map<String, Object?>,
+      _buildWidget,
+      _dispatchEvent,
+      context,
+    );
   }
 }

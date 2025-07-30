@@ -2,9 +2,15 @@
 
 This repository is a collection of packages and applications for the Flutter Generative UI SDK.
 
+## TODO before publishing
+
+1. Clean up Google internal information.
+2. Make colors and sizes consistent and organized in catalog.
+
 ## Packages
 
-- [`genui_client`](/pkgs/genui_client): A client for the Generative UI service.
+TODO: describe packages
+Example: https://github.com/dart-lang/leak_tracker?tab=readme-ov-file#packages
 
 ## Contribute
 

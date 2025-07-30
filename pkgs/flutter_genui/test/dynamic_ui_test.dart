@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_genui/flutter_genui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui_client/src/catalog.dart';
-import 'package:genui_client/src/widgets/elevated_button.dart';
-import 'package:genui_client/src/widgets/text.dart';
-import 'package:genui_client/src/dynamic_ui.dart';
-import 'package:genui_client/src/ui_models.dart';
 
 void main() {
   final testCatalog = Catalog([elevatedButtonCatalogItem, text]);
 
-  testWidgets('DynamicUi builds a widget from a definition',
-      (WidgetTester tester) async {
+  testWidgets('DynamicUi builds a widget from a definition', (
+    WidgetTester tester,
+  ) async {
     final definition = UiDefinition.fromMap({
       'surfaceId': 'testSurface',
       'root': 'root',
@@ -18,17 +15,13 @@ void main() {
         {
           'id': 'root',
           'widget': {
-            'elevated_button': {
-              'child': 'text',
-            },
+            'elevated_button': {'child': 'text'},
           },
         },
         {
           'id': 'text',
           'widget': {
-            'text': {
-              'text': 'Hello',
-            },
+            'text': {'text': 'Hello'},
           },
         },
       ],
@@ -59,17 +52,13 @@ void main() {
         {
           'id': 'root',
           'widget': {
-            'elevated_button': {
-              'child': 'text',
-            },
+            'elevated_button': {'child': 'text'},
           },
         },
         {
           'id': 'text',
           'widget': {
-            'text': {
-              'text': 'Hello',
-            },
+            'text': {'text': 'Hello'},
           },
         },
       ],

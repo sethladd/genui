@@ -1,13 +1,14 @@
+// ignore_for_file: avoid_dynamic_calls
+
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/material.dart';
 
-import '../catalog_item.dart';
+import '../../model/catalog_item.dart';
 
 final _schema = Schema.object(
   properties: {
     'groupValue': Schema.string(
-      description:
-          'The currently selected value for a group of radio buttons.',
+      description: 'The currently selected value for a group of radio buttons.',
     ),
     'labels': Schema.array(
       items: Schema.string(),
@@ -63,7 +64,9 @@ class _RadioGroupState extends State<_RadioGroup> {
         return RadioListTile<String>(
           title: Text(label),
           value: label,
+          // ignore: deprecated_member_use
           groupValue: _groupValue,
+          // ignore: deprecated_member_use
           onChanged: changedCallback,
         );
       }).toList(),
@@ -72,12 +75,12 @@ class _RadioGroupState extends State<_RadioGroup> {
 }
 
 Widget _builder(
-    dynamic data, // The actual deserialized JSON data for this layout
-    String id,
-    Widget Function(String id) buildChild,
-    void Function(String widgetId, String eventType, Object? value)
-        dispatchEvent,
-    BuildContext context) {
+  dynamic data, // The actual deserialized JSON data for this layout
+  String id,
+  Widget Function(String id) buildChild,
+  void Function(String widgetId, String eventType, Object? value) dispatchEvent,
+  BuildContext context,
+) {
   final groupValue = data['groupValue'] as String;
   final labels = (data['labels'] as List<dynamic>).cast<String>();
 
