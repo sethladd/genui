@@ -36,6 +36,26 @@ final _schema = Schema.object(
   },
 );
 
+extension type _ColumnData.fromMap(Map<String, Object?> _json) {
+  factory _ColumnData({
+    List<String> children = const [],
+    double? spacing,
+    String? mainAxisAlignment,
+    String? crossAxisAlignment,
+  }) => _ColumnData.fromMap({
+    'children': children,
+    'spacing': spacing,
+    'mainAxisAlignment': mainAxisAlignment,
+    'crossAxisAlignment': crossAxisAlignment,
+  });
+
+  List<String> get children =>
+      ((_json['children'] as List?) ?? []).cast<String>();
+  double get spacing => (_json['spacing'] as num?)?.toDouble() ?? 8.0;
+  String? get mainAxisAlignment => _json['mainAxisAlignment'] as String?;
+  String? get crossAxisAlignment => _json['crossAxisAlignment'] as String?;
+}
+
 MainAxisAlignment _parseMainAxisAlignment(String? alignment) {
   switch (alignment) {
     case 'start':
@@ -81,8 +101,9 @@ final columnCatalogItem = CatalogItem(
         required dispatchEvent,
         required context,
       }) {
-        final childrenIds = (data['children'] as List<dynamic>).cast<String>();
-        final spacing = (data['spacing'] as num?)?.toDouble() ?? 8.0;
+        final columnData = _ColumnData.fromMap(data as Map<String, Object?>);
+        final childrenIds = columnData.children;
+        final spacing = columnData.spacing;
         final childrenWithSpacing = <Widget>[];
         for (var i = 0; i < childrenIds.length; i++) {
           childrenWithSpacing.add(buildChild(childrenIds[i]));
@@ -92,10 +113,10 @@ final columnCatalogItem = CatalogItem(
         }
         return Column(
           mainAxisAlignment: _parseMainAxisAlignment(
-            data['mainAxisAlignment'] as String?,
+            columnData.mainAxisAlignment,
           ),
           crossAxisAlignment: _parseCrossAxisAlignment(
-            data['crossAxisAlignment'] as String?,
+            columnData.crossAxisAlignment,
           ),
           children: childrenWithSpacing,
         );

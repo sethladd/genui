@@ -15,6 +15,22 @@ final _schema = Schema.object(
   },
 );
 
+extension type _TextFieldData.fromMap(Map<String, Object?> _json) {
+  factory _TextFieldData({
+    String? value,
+    String? hintText,
+    bool? obscureText,
+  }) => _TextFieldData.fromMap({
+    'value': value,
+    'hintText': hintText,
+    'obscureText': obscureText,
+  });
+
+  String get value => (_json['value'] as String?) ?? '';
+  String? get hintText => _json['hintText'] as String?;
+  bool get obscureText => (_json['obscureText'] as bool?) ?? false;
+}
+
 class _TextField extends StatefulWidget {
   const _TextField({
     required this.initialValue,
@@ -80,14 +96,13 @@ final textField = CatalogItem(
         required dispatchEvent,
         required context,
       }) {
-        final value = data['value'] as String? ?? '';
-        final hintText = data['hintText'] as String?;
-        final obscureText = data['obscureText'] as bool? ?? false;
-
+        final textFieldData = _TextFieldData.fromMap(
+          data as Map<String, Object?>,
+        );
         return _TextField(
-          initialValue: value,
-          hintText: hintText,
-          obscureText: obscureText,
+          initialValue: textFieldData.value,
+          hintText: textFieldData.hintText,
+          obscureText: textFieldData.obscureText,
           onChanged: (newValue) {
             dispatchEvent(
               widgetId: id,

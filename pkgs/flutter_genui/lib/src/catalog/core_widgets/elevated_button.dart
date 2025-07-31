@@ -14,6 +14,13 @@ final _schema = Schema.object(
   },
 );
 
+extension type _ElevatedButtonData.fromMap(Map<String, Object?> _json) {
+  factory _ElevatedButtonData({required String child}) =>
+      _ElevatedButtonData.fromMap({'child': child});
+
+  String get child => _json['child'] as String;
+}
+
 final elevatedButtonCatalogItem = CatalogItem(
   name: 'elevated_button',
   dataSchema: _schema,
@@ -25,9 +32,10 @@ final elevatedButtonCatalogItem = CatalogItem(
         required dispatchEvent,
         required context,
       }) {
-        /// The ID of the child widget to display inside the button.
-        final childId = data['child'] as String;
-        final child = buildChild(childId);
+        final buttonData = _ElevatedButtonData.fromMap(
+          data as Map<String, Object?>,
+        );
+        final child = buildChild(buttonData.child);
         return ElevatedButton(
           onPressed: () =>
               dispatchEvent(widgetId: id, eventType: 'onTap', value: null),

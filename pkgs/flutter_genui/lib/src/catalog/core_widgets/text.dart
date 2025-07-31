@@ -4,6 +4,13 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/material.dart';
 import '../../model/catalog_item.dart';
 
+extension type _TextData.fromMap(Map<String, Object?> _json) {
+  factory _TextData({required String text}) =>
+      _TextData.fromMap({'text': text});
+
+  String get text => _json['text'] as String;
+}
+
 final text = CatalogItem(
   name: 'text',
   dataSchema: Schema.object(
@@ -17,8 +24,9 @@ final text = CatalogItem(
         required dispatchEvent,
         required context,
       }) {
+        final textData = _TextData.fromMap(data as Map<String, Object?>);
         return Text(
-          data['text'] as String,
+          textData.text,
           style: Theme.of(context).textTheme.bodyMedium,
         );
       },

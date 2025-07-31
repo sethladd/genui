@@ -17,6 +17,16 @@ final _schema = Schema.object(
   },
 );
 
+extension type _RadioGroupData.fromMap(Map<String, Object?> _json) {
+  factory _RadioGroupData({
+    required String groupValue,
+    required List<String> labels,
+  }) => _RadioGroupData.fromMap({'groupValue': groupValue, 'labels': labels});
+
+  String get groupValue => _json['groupValue'] as String;
+  List<String> get labels => (_json['labels'] as List).cast<String>();
+}
+
 class _RadioGroup extends StatefulWidget {
   const _RadioGroup({
     required this.initialGroupValue,
@@ -85,12 +95,10 @@ final radioGroup = CatalogItem(
         required dispatchEvent,
         required context,
       }) {
-        final groupValue = data['groupValue'] as String;
-        final labels = (data['labels'] as List<dynamic>).cast<String>();
-
+        final radioData = _RadioGroupData.fromMap(data as Map<String, Object?>);
         return _RadioGroup(
-          initialGroupValue: groupValue,
-          labels: labels,
+          initialGroupValue: radioData.groupValue,
+          labels: radioData.labels,
           onChanged: (newValue) {
             if (newValue != null) {
               dispatchEvent(

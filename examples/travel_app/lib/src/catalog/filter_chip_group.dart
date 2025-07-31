@@ -14,6 +14,19 @@ final _schema = Schema.object(
   },
 );
 
+extension type _FilterChipGroupData.fromMap(Map<String, Object?> _json) {
+  factory _FilterChipGroupData({
+    required String submitLabel,
+    required List<String> children,
+  }) => _FilterChipGroupData.fromMap({
+    'submitLabel': submitLabel,
+    'children': children,
+  });
+
+  String get submitLabel => _json['submitLabel'] as String;
+  List<String> get children => (_json['children'] as List).cast<String>();
+}
+
 final filterChipGroup = CatalogItem(
   name: 'filterChipGroup',
   dataSchema: _schema,
@@ -25,8 +38,11 @@ final filterChipGroup = CatalogItem(
         required dispatchEvent,
         required context,
       }) {
-        final submitLabel = (data as Map)['submitLabel'] as String;
-        final children = (data['children'] as List).cast<String>();
+        final filterChipGroupData = _FilterChipGroupData.fromMap(
+          data as Map<String, Object?>,
+        );
+        final submitLabel = filterChipGroupData.submitLabel;
+        final children = filterChipGroupData.children;
 
         return Card(
           color: Theme.of(context).colorScheme.primaryContainer,

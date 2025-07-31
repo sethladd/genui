@@ -16,6 +16,16 @@ final _schema = Schema.object(
   },
 );
 
+extension type _CheckboxGroupData.fromMap(Map<String, Object?> _json) {
+  factory _CheckboxGroupData({
+    required List<bool> values,
+    required List<String> labels,
+  }) => _CheckboxGroupData.fromMap({'values': values, 'labels': labels});
+
+  List<bool> get values => (_json['values'] as List).cast<bool>();
+  List<String> get labels => (_json['labels'] as List).cast<String>();
+}
+
 class _CheckboxGroup extends StatefulWidget {
   const _CheckboxGroup({
     required this.initialValues,
@@ -81,14 +91,12 @@ final checkboxGroup = CatalogItem(
         required dispatchEvent,
         required context,
       }) {
-        // ignore: avoid_dynamic_calls
-        final values = (data['values'] as List<dynamic>).cast<bool>();
-        // ignore: avoid_dynamic_calls
-        final labels = (data['labels'] as List<dynamic>).cast<String>();
-
+        final checkboxData = _CheckboxGroupData.fromMap(
+          data as Map<String, Object?>,
+        );
         return _CheckboxGroup(
-          initialValues: values,
-          labels: labels,
+          initialValues: checkboxData.values,
+          labels: checkboxData.labels,
           onChanged: (newValues) {
             dispatchEvent(
               widgetId: id,
