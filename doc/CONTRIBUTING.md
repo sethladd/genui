@@ -1,5 +1,7 @@
 # Contributing to Flutter GenUI
 
+## Style and other
+
 Please follow our
 [contributor guidelines](https://github.com/flutter/flutter/blob/master/CONTRIBUTING.md).
 
@@ -25,3 +27,7 @@ Guidances:
 
 See the project's `fluttergenui` details
 [here](https://pantheon.corp.google.com/welcome?inv=1&invt=Ab4FMw&project=fluttergenui).
+
+## Shell scripts
+
+To run a script in `tool/`, open the script in VSCode and press ⇧⌘B.
