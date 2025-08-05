@@ -33,7 +33,7 @@ void main() {
                       }
                       return const Text('Child Content');
                     },
-                    dispatchEvent: ({widgetId = '', eventType = '', value}) {},
+                    dispatchEvent: (event) {},
                     context: context,
                   );
                 },
@@ -74,7 +74,7 @@ void main() {
                       }
                       return const Text('Modal Child Content');
                     },
-                    dispatchEvent: ({widgetId = '', eventType = '', value}) {},
+                    dispatchEvent: (event) {},
                     context: context,
                   );
                 },
