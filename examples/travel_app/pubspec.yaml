@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-name: genui_client
+name: travel_app
 description: "An app that generates user interfaces on the fly using AI."
 publish_to: "none"
 version: 0.1.0
@@ -35,3 +35,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/travel_images/
