@@ -43,7 +43,7 @@ void main() {
     testWidgets('buildWidget returns empty container for unknown widget type', (
       WidgetTester tester,
     ) async {
-      final catalog = Catalog([]);
+      final catalog = const Catalog([]);
       final data = {
         'id': 'text1',
         'widget': {
