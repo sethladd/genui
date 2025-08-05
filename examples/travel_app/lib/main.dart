@@ -95,11 +95,12 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final _promptController = TextEditingController();
   late final GenUiManager _genUiManager;
+  late AiClient aiClient;
 
   @override
   void initState() {
     super.initState();
-    final aiClient = AiClient(
+    aiClient = AiClient(
       loggingCallback: (severity, message) {
         debugPrint('[$severity] $message');
       },
@@ -126,15 +127,55 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         leading: const Icon(Icons.menu),
         title: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Icon(Icons.chat_bubble_outline),
-            SizedBox(width: 8.0), // Add spacing between icon and text
+            SizedBox(width: 16.0), // Add spacing between icon and text
             Text('Dynamic UI Demo'),
           ],
         ),
-        actions: [const Icon(Icons.person_outline), const SizedBox(width: 8.0)],
+        actions: [
+          ValueListenableBuilder<GeminiModel>(
+            valueListenable: aiClient.model,
+            builder: (context, currentModel, child) {
+              return PopupMenuButton<GeminiModel>(
+                icon: const Icon(Icons.psychology_outlined),
+                onSelected: (GeminiModel value) {
+                  // Handle model selection
+                  aiClient.switchModel(value);
+                },
+                itemBuilder: (BuildContext context) =>
+                    <PopupMenuEntry<GeminiModel>>[
+                      PopupMenuItem<GeminiModel>(
+                        value: GeminiModel.flash,
+                        child: Row(
+                          children: [
+                            const Text('Gemini Flash'),
+                            if (currentModel == GeminiModel.flash)
+                              const Icon(Icons.check),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<GeminiModel>(
+                        value: GeminiModel.pro,
+                        child: Row(
+                          children: [
+                            const Text('Gemini Pro'),
+                            if (currentModel == GeminiModel.pro)
+                              const Icon(Icons.check),
+                          ],
+                        ),
+                      ),
+                    ],
+              );
+            },
+          ),
+          const Icon(Icons.person_outline),
+          const SizedBox(width: 8.0),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
