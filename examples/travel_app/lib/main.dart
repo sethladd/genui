@@ -49,12 +49,12 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final _promptController = TextEditingController();
   late final GenUiManager _genUiManager;
-  late AiClient aiClient;
+  late GeminiAiClient aiClient;
 
   @override
   void initState() {
     super.initState();
-    aiClient = AiClient(
+    aiClient = GeminiAiClient(
       systemInstruction: prompt,
       loggingCallback: (severity, message) {
         debugPrint('[$severity] $message');
@@ -62,7 +62,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
     _genUiManager = GenUiManager.conversation(
       catalog: catalog,
-      llmConnection: aiClient,
+      aiClient: aiClient,
     );
   }
 
