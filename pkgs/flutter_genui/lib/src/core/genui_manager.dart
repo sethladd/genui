@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/material.dart';
@@ -17,9 +18,12 @@ class GenUiManager {
     this.catalog = const Catalog([]),
     this.userPromptBuilder,
     this.systemMessageBuilder,
+    this.showInternalMessages = false,
   }) {
     _eventManager = UiEventManager(callback: handleEvents);
   }
+
+  final bool showInternalMessages;
 
   final Catalog catalog;
   final LlmConnection llmConnection;
@@ -27,9 +31,8 @@ class GenUiManager {
   final SystemMessageBuilder? systemMessageBuilder;
   late final UiEventManager _eventManager;
 
-  // Context used for future LLM inferences
-  final masterConversation = <Content>[];
-  final conversationsBySurfaceId = <String, List<Content>>{};
+  @visibleForTesting
+  List<ChatMessage> get chatHistoryForTesting => _chatHistory;
 
   // The current chat data that is shown.
   final _chatHistory = <ChatMessage>[];
@@ -62,59 +65,58 @@ class GenUiManager {
     _chatHistory.add(UserPrompt(text: prompt));
     _uiDataStreamController.add(List.from(_chatHistory));
 
-    masterConversation.add(Content.text(prompt));
-    _generateAndSendResponse(conversation: masterConversation);
+    _generateAndSendResponse();
   }
 
-  void handleEvents(List<UiEvent> events) {
-    final eventsBySurface = <String, List<UiEvent>>{};
+  void handleEvents(String surfaceId, List<UiEvent> events) {
     for (final event in events) {
-      final surfaceId = event.surfaceId;
-      if (surfaceId != null) {
-        (eventsBySurface[surfaceId] ??= []).add(event);
-      }
+      _chatHistory.add(UiEventMessage(event: event));
     }
 
-    for (final entry in eventsBySurface.entries) {
-      final surfaceId = entry.key;
-      final surfaceConversation = conversationsBySurfaceId[surfaceId];
-      if (surfaceConversation == null) {
-        // TODO: Handle error - unknown surfaceId
-        print('Unknown surfaceId: $surfaceId');
-        continue;
-      }
-      for (final event in entry.value) {
-        final functionResponse = FunctionResponse(
-          event.widgetId,
-          event.toMap(),
-        );
-        surfaceConversation.add(
-          Content.functionResponse(
-            functionResponse.name,
-            functionResponse.response,
-          ),
-        );
-      }
-      surfaceConversation.add(
-        Content.text(
-          'The user has interacted with the UI surface named "$surfaceId". '
-          'Consolidate the UI events and update the UI accordingly. Respond '
-          'with an updated UI definition. You may update any of the '
-          'surfaces, or delete them if they are no longer needed.',
-        ),
-      );
-      _generateAndSendResponse(conversation: surfaceConversation);
-    }
+    _chatHistory.add(
+      InternalMessage(
+        'The user has interacted with the UI surface named "$surfaceId". '
+        'Consolidate the UI events and update the UI accordingly. You can '
+        'choose to update this surface if the previous content is no-longer '
+        'needed, or add a new surface to show additional content.',
+      ),
+    );
+    _uiDataStreamController.add(List.from(_chatHistory));
+
+    _generateAndSendResponse();
   }
 
-  Future<void> _generateAndSendResponse({
-    required List<Content> conversation,
-  }) async {
+  List<Content> _contentForChatHistory() {
+    final conversation = <Content>[];
+    for (final message in _chatHistory) {
+      switch (message) {
+        case SystemMessage():
+          conversation.add(Content.text(message.text));
+        case UserPrompt():
+          conversation.add(Content.text(message.text));
+        case UiResponse():
+          conversation.add(
+            Content.model([TextPart(jsonEncode(message.definition))]),
+          );
+        case InternalMessage():
+          conversation.add(Content.text(message.text));
+        case UiEventMessage():
+          conversation.add(
+            Content('user', [
+              FunctionResponse(message.event.widgetId, message.event.toMap()),
+            ]),
+          );
+      }
+    }
+    return conversation;
+  }
+
+  Future<void> _generateAndSendResponse() async {
     _outstandingRequests++;
     _loadingStreamController.add(true);
     try {
       final response = await llmConnection.generateContent(
-        conversation,
+        _contentForChatHistory(),
         outputSchema,
       );
       if (response == null) {
@@ -135,8 +137,6 @@ class GenUiManager {
             case 'add':
               final definition =
                   actionMap['definition'] as Map<String, Object?>;
-              final newConversation = List<Content>.from(conversation);
-              conversationsBySurfaceId[surfaceId] = newConversation;
               _chatHistory.add(
                 UiResponse(
                   definition: {'surfaceId': surfaceId, ...definition},
@@ -157,9 +157,14 @@ class GenUiManager {
                   definition: {'surfaceId': surfaceId, ...definition},
                   surfaceId: surfaceId,
                 );
+                _chatHistory.add(
+                  InternalMessage(
+                    'The existing surface with id $surfaceId has been updated '
+                    'in response to user input.',
+                  ),
+                );
               }
             case 'delete':
-              conversationsBySurfaceId.remove(surfaceId);
               _chatHistory.removeWhere(
                 (message) =>
                     message is UiResponse && message.surfaceId == surfaceId,
@@ -244,6 +249,7 @@ class GenUiManager {
         return ConversationWidget(
           messages: snapshot.data!,
           catalog: catalog,
+          showInternalMessages: showInternalMessages,
           onEvent: (event) {
             _eventManager.add(UiEvent.fromMap(event));
           },
