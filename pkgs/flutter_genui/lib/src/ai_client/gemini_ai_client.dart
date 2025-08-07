@@ -15,6 +15,14 @@ import 'gemini_schema_adapter.dart';
 import 'generative_model_interface.dart';
 import 'tools.dart';
 
+const _chatPromptPrefix = '''
+You are a helpful assistant who figures out what the user wants to do and then helps suggest options so they can develop a plan and find relevant information.
+
+The user will ask questions, and you will respond by generating appropriate UI elements. Typically, you will first elicit more information to understand the user's needs, then you will start displaying information and the user's plans.
+
+Typically, you should not update existing surfaces and instead just continually "add" new ones.
+''';
+
 /// Defines the severity levels for logging messages within the AI client and
 /// related components.
 typedef GenerativeModelFactory =
@@ -70,6 +78,9 @@ class GeminiAiClient implements AiClient {
   /// - [tools]: A list of default [AiTool]s available to the AI.
   /// - [outputToolName]: The name of the internal tool used to force structured
   ///   output from the AI.
+  /// - [addChatPromptPrefix]: Whether this client is used for chat
+  ///   interactions. If true, the system instruction will be prefixed with
+  ///   instruction to create a chat-based UI.
   GeminiAiClient({
     GeminiModelType model = GeminiModelType.flash,
     this.fileSystem = const LocalFileSystem(),
@@ -81,8 +92,11 @@ class GeminiAiClient implements AiClient {
     this.loggingCallback,
     this.tools = const <AiTool>[],
     this.outputToolName = 'provideFinalOutput',
+    bool addChatPromptPrefix = true,
     String? systemInstruction,
-  }) : _systemInstruction = systemInstruction,
+  }) : _systemInstruction = addChatPromptPrefix
+           ? '$_chatPromptPrefix$systemInstruction'
+           : systemInstruction,
        _model = ValueNotifier(GeminiModel(model)) {
     final duplicateToolNames = tools.map((t) => t.name).toSet();
     if (duplicateToolNames.length != tools.length) {
@@ -109,6 +123,7 @@ class GeminiAiClient implements AiClient {
     this.loggingCallback,
     this.tools = const <AiTool>[],
     this.outputToolName = 'provideFinalOutput',
+    bool addChatPromptPrefix = true,
     String? systemInstruction,
   }) : _systemInstruction = systemInstruction,
        _model = ValueNotifier(GeminiModel(model)) {

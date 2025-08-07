@@ -35,15 +35,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final GenUiManager _genUiManager = GenUiManager.conversation(
+  final GenUiManager _genUiManager = GenUiManager.chat(
     aiClient: GeminiAiClient(),
   );
-
-  @override
-  void initState() {
-    super.initState();
-    _genUiManager.sendUserPrompt('Talk to me.');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +46,10 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text(title),
       ),
-      body: Center(child: _genUiManager.widget()),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: _genUiManager.widget(),
+      ),
     );
   }
 }

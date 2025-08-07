@@ -16,24 +16,54 @@ import '../ai_client/ai_client.dart';
 import '../model/catalog.dart';
 import '../model/chat_message.dart';
 import '../model/ui_models.dart';
-import 'conversation_widget.dart';
 import 'core_catalog.dart';
 import 'ui_event_manager.dart';
+import 'widgets/chat_widget.dart';
+import 'widgets/conversation_widget.dart';
+
+enum GenUiStyle { flexible, chat }
 
 class GenUiManager {
-  GenUiManager.conversation({
+  void _init(Catalog? catalog) {
+    this.catalog = catalog ?? coreCatalog;
+    _eventManager = UiEventManager(callback: handleEvents);
+  }
+
+  GenUiManager({
     required this.aiClient,
     Catalog? catalog,
     this.userPromptBuilder,
     this.systemMessageBuilder,
     this.showInternalMessages = false,
-  }) : catalog = catalog ?? coreCatalog {
-    _eventManager = UiEventManager(callback: handleEvents);
+  }) : style = GenUiStyle.flexible {
+    _init(catalog);
+    _chatController = null;
   }
+
+  GenUiManager.chat({
+    required this.aiClient,
+    Catalog? catalog,
+    this.userPromptBuilder,
+    this.systemMessageBuilder,
+    this.showInternalMessages = false,
+  }) : style = GenUiStyle.chat {
+    _init(catalog);
+    _chatController = GenUiChatController();
+    loadingStream.listen((bool data) {
+      print('!!! Loading state changed: $data');
+      if (data) {
+        _chatController?.setAiRequestSent();
+      }
+    });
+  }
+
+  final GenUiStyle style;
+
+  late final GenUiChatController? _chatController;
 
   final bool showInternalMessages;
 
-  final Catalog catalog;
+  late final Catalog catalog;
   final AiClient aiClient;
   final UserPromptBuilder? userPromptBuilder;
   final SystemMessageBuilder? systemMessageBuilder;
@@ -62,6 +92,7 @@ class GenUiManager {
     _uiDataStreamController.close();
     _loadingStreamController.close();
     _eventManager.dispose();
+    _chatController?.dispose();
   }
 
   /// Sends a prompt on behalf of the end user. This should update the UI and
@@ -194,6 +225,7 @@ class GenUiManager {
       _outstandingRequests--;
       if (_outstandingRequests == 0) {
         _loadingStreamController.add(false);
+        _chatController?.setAiResponseReceived();
       }
     }
   }
@@ -260,16 +292,30 @@ class GenUiManager {
       stream: uiDataStream,
       initialData: const <ChatMessage>[],
       builder: (context, snapshot) {
-        return ConversationWidget(
-          messages: snapshot.data!,
-          catalog: catalog,
-          showInternalMessages: showInternalMessages,
-          onEvent: (event) {
-            _eventManager.add(UiEvent.fromMap(event));
-          },
-          systemMessageBuilder: systemMessageBuilder,
-          userPromptBuilder: userPromptBuilder,
-        );
+        return switch (style) {
+          GenUiStyle.flexible => ConversationWidget(
+            messages: snapshot.data!,
+            catalog: catalog,
+            showInternalMessages: showInternalMessages,
+            onEvent: (event) {
+              _eventManager.add(UiEvent.fromMap(event));
+            },
+            systemMessageBuilder: systemMessageBuilder,
+            userPromptBuilder: userPromptBuilder,
+          ),
+          GenUiStyle.chat => GenUiChat(
+            messages: snapshot.data!,
+            catalog: catalog,
+            showInternalMessages: showInternalMessages,
+            onEvent: (event) {
+              _eventManager.add(UiEvent.fromMap(event));
+            },
+            systemMessageBuilder: systemMessageBuilder,
+            userPromptBuilder: userPromptBuilder,
+            onChatMessage: sendUserPrompt,
+            controller: _chatController!,
+          ),
+        };
       },
     );
   }
