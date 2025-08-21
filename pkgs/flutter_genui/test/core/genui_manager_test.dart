@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'package:flutter_genui/src/ai_client/ui_tools.dart';
 import 'package:flutter_genui/src/core/core_catalog.dart';
 import 'package:flutter_genui/src/core/genui_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -112,13 +111,6 @@ void main() {
       expect(update, isA<SurfaceRemoved>());
       expect(update.surfaceId, 's1');
       expect(manager.surface('s1').value, isNull);
-    });
-
-    test('getTools returns the correct tools', () {
-      final tools = manager.getTools();
-      expect(tools, hasLength(2));
-      expect(tools[0], isA<AddOrUpdateSurfaceTool>());
-      expect(tools[1], isA<DeleteSurfaceTool>());
     });
 
     test('surface() creates a new ValueNotifier if one does not exist', () {

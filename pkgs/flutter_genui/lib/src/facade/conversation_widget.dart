@@ -4,10 +4,10 @@
 
 import 'package:flutter/material.dart';
 
-import '../../model/chat_message.dart';
-import '../../model/genui_surface.dart';
-import '../genui_manager.dart';
-import 'chat_primitives.dart';
+import '../core/genui_manager.dart';
+import '../core/widgets/chat_primitives.dart';
+import '../model/chat_message.dart';
+import 'genui_surface.dart';
 
 typedef UserPromptBuilder =
     Widget Function(BuildContext context, UserMessage message);

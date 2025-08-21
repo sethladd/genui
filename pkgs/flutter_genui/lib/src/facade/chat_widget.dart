@@ -6,11 +6,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../model/chat_box.dart';
-import '../../model/chat_message.dart';
-import '../../model/genui_surface.dart';
-import '../genui_manager.dart';
-import 'chat_primitives.dart';
+import '../core/genui_manager.dart';
+import '../core/widgets/chat_primitives.dart';
+import '../model/chat_box.dart';
+import '../model/chat_message.dart';
+import 'genui_surface.dart';
 
 class GenUiChatController {
   GenUiChatController({required this.manager}) {
