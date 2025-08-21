@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/genui_manager.dart';
@@ -41,12 +43,37 @@ class GenUiSurface extends StatefulWidget {
 }
 
 class _GenUiSurfaceState extends State<GenUiSurface> {
-  late final ValueNotifier<UiDefinition?> _definitionNotifier;
+  ValueNotifier<UiDefinition?>? _definitionNotifier;
+  StreamSubscription<GenUiUpdate>? _allUpdatesSubscription;
 
   @override
   void initState() {
     super.initState();
-    _definitionNotifier = widget.manager.surface(widget.surfaceId);
+    _init();
+  }
+
+  @override
+  void didUpdateWidget(covariant GenUiSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.surfaceId != widget.surfaceId ||
+        oldWidget.manager != widget.manager) {
+      _init();
+    }
+  }
+
+  void _init() {
+    // Reset previous subscription for updates.
+    _allUpdatesSubscription?.cancel();
+    _allUpdatesSubscription = widget.manager.updates.listen((update) {
+      if (update.surfaceId == widget.surfaceId) _init();
+    });
+
+    // Update definition if it is changed.
+    final newDefinitionNotifier = widget.manager.surface(widget.surfaceId);
+    if (newDefinitionNotifier == _definitionNotifier) return;
+    _definitionNotifier = newDefinitionNotifier;
+    setState(() {});
   }
 
   /// Dispatches an event by calling the public [GenUiSurface.onEvent]
@@ -60,8 +87,13 @@ class _GenUiSurfaceState extends State<GenUiSurface> {
 
   @override
   Widget build(BuildContext context) {
+    final notifier = _definitionNotifier;
+    if (notifier == null) {
+      return const SizedBox.shrink();
+    }
+
     return ValueListenableBuilder<UiDefinition?>(
-      valueListenable: _definitionNotifier,
+      valueListenable: notifier,
       builder: (context, definition, child) {
         genUiLogger.info('Building surface ${widget.surfaceId}');
         if (definition == null) {
@@ -96,5 +128,13 @@ class _GenUiSurfaceState extends State<GenUiSurface> {
       _dispatchEvent,
       context,
     );
+  }
+
+  @override
+  void dispose() {
+    _allUpdatesSubscription?.cancel();
+    // We should not dispose _definitionNotifier,
+    // because it is owned by the manager.
+    super.dispose();
   }
 }
