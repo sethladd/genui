@@ -5,7 +5,7 @@
 import 'package:flutter/material.dart';
 
 import '../../model/chat_message.dart';
-import '../../model/surface_widget.dart';
+import '../../model/genui_surface.dart';
 import '../genui_manager.dart';
 import 'chat_primitives.dart';
 
@@ -68,7 +68,7 @@ class ConversationWidget extends StatelessWidget {
           case UiResponseMessage():
             return Padding(
               padding: const EdgeInsets.all(16.0),
-              child: SurfaceWidget(
+              child: GenUiSurface(
                 key: message.uiKey,
                 manager: manager,
                 surfaceId: message.surfaceId,

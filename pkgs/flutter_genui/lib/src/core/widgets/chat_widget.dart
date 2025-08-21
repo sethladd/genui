@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../../model/chat_box.dart';
 import '../../model/chat_message.dart';
-import '../../model/surface_widget.dart';
+import '../../model/genui_surface.dart';
 import '../genui_manager.dart';
 import 'chat_primitives.dart';
 
@@ -206,7 +206,7 @@ class _GenUiChatState extends State<GenUiChat> {
                     case UiResponseMessage():
                       return Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: SurfaceWidget(
+                        child: GenUiSurface(
                           key: message.uiKey,
                           manager: widget.controller.manager,
                           surfaceId: message.surfaceId,
