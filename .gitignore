@@ -32,9 +32,11 @@ DEPS.md
 **/build/
 **/coverage/
 **/pubspec.lock
-generated_plugins.cmake
-GeneratedPluginRegistrant.*
-generated_plugin_registrant.*
+**/generated_plugins.cmake
+**/GeneratedPluginRegistrant.*
+**/generated_plugin_registrant.*
+**/Podfile
+**/Runner-Bridging-Header.h
 
 # Symbolication related
 app.*.symbols
