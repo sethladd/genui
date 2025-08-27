@@ -97,12 +97,14 @@ final checkboxGroup = CatalogItem(
         required buildChild,
         required dispatchEvent,
         required context,
+        required values,
       }) {
         final checkboxData = _CheckboxGroupData.fromMap(data as JsonMap);
         return _CheckboxGroup(
           initialValues: checkboxData.values,
           labels: checkboxData.labels,
           onChanged: (newValues) {
+            values[id] = newValues;
             dispatchEvent(
               UiChangeEvent(
                 widgetId: id,

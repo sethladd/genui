@@ -101,6 +101,7 @@ final textField = CatalogItem(
         required buildChild,
         required dispatchEvent,
         required context,
+        required values,
       }) {
         final textFieldData = _TextFieldData.fromMap(data as JsonMap);
         return _TextField(
@@ -108,6 +109,7 @@ final textField = CatalogItem(
           hintText: textFieldData.hintText,
           obscureText: textFieldData.obscureText,
           onChanged: (newValue) {
+            values[id] = newValue;
             dispatchEvent(
               UiChangeEvent(
                 widgetId: id,

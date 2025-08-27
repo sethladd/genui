@@ -48,6 +48,7 @@ final filterChipGroup = CatalogItem(
         required buildChild,
         required dispatchEvent,
         required context,
+        required values,
       }) {
         final filterChipGroupData = _FilterChipGroupData.fromMap(
           data as Map<String, Object?>,
@@ -73,7 +74,7 @@ final filterChipGroup = CatalogItem(
                     UiActionEvent(
                       widgetId: id,
                       eventType: 'submit',
-                      value: null,
+                      value: values,
                     ),
                   ),
                   child: Text(submitLabel),

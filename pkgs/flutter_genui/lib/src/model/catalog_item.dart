@@ -5,10 +5,24 @@
 import 'package:dart_schema_builder/dart_schema_builder.dart';
 import 'package:flutter/material.dart';
 
+import '../primitives/simple_items.dart';
 import 'ui_event_manager.dart';
 
 /// A callback that builds a child widget for a catalog item.
 typedef ChildBuilderCallback = Widget Function(String id);
+
+/// Store for widget values by surfaceId.
+class WidgetValueStore {
+  final Map<String, JsonMap> _values = {};
+
+  JsonMap forSurface(String surfaceId) {
+    return _values.putIfAbsent(surfaceId, () => {});
+  }
+
+  void delete(String surfaceId) {
+    _values.remove(surfaceId);
+  }
+}
 
 /// A callback that builds a widget for a catalog item.
 typedef CatalogWidgetBuilder =
@@ -22,7 +36,10 @@ typedef CatalogWidgetBuilder =
       required ChildBuilderCallback buildChild,
       // A function used to dispatch an event.
       required DispatchEventCallback dispatchEvent,
+
       required BuildContext context,
+      // The current values of all widgets on the surface.
+      required JsonMap values,
     });
 
 /// Defines a UI layout type, its schema, and how to build its widget.
@@ -45,5 +62,5 @@ class CatalogItem {
   final CatalogWidgetBuilder widgetBuilder;
 
   /// Example data for this widget, for testing purposes.
-  final Map<String, Object?>? exampleData;
+  final JsonMap? exampleData;
 }

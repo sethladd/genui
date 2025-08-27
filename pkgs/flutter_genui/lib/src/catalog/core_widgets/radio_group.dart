@@ -115,6 +115,7 @@ final radioGroup = CatalogItem(
         required buildChild,
         required dispatchEvent,
         required context,
+        required values,
       }) {
         final radioData = _RadioGroupData.fromMap(data as JsonMap);
         return _RadioGroup(
@@ -122,6 +123,7 @@ final radioGroup = CatalogItem(
           labels: radioData.labels,
           onChanged: (newValue) {
             if (newValue != null) {
+              values[id] = newValue;
               dispatchEvent(
                 UiChangeEvent(
                   widgetId: id,
