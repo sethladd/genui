@@ -4,7 +4,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_ai/firebase_ai.dart';
+import 'package:firebase_ai/firebase_ai.dart' hide TextPart;
+import 'package:flutter_genui/flutter_genui.dart';
+import 'package:simple_chat/message.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -35,10 +37,25 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
-  final List<String> _messages = [];
-  final FirebaseAIService _aiService = FirebaseAIService();
+  final List<MessageController> _messages = [];
+  // TODO: pass model from FirebaseAIService
+  late final UiAgent _uiAgent = UiAgent(
+    'You are a helpful assistant.',
+    catalog: null,
+    onSurfaceAdded: _onSurfaceAdded,
+    onSurfaceRemoved: _onSurfaceRemoved,
+  );
   final ScrollController _scrollController = ScrollController();
-  bool _isLoading = false;
+
+  void _onSurfaceAdded(SurfaceAdded surface) {
+    _messages.add(MessageController(surfaceId: surface.surfaceId));
+    setState(() {});
+    _scrollToBottom();
+  }
+
+  void _onSurfaceRemoved(SurfaceRemoved surface) {
+    _messages.removeWhere((message) => message.surfaceId == surface.surfaceId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,15 +70,24 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   final message = _messages[index];
-                  return ListTile(title: Text(message));
+                  return ListTile(
+                    title: MessageView(message, _uiAgent.builder),
+                  );
                 },
               ),
             ),
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: CircularProgressIndicator(),
-              ),
+
+            ValueListenableBuilder(
+              valueListenable: _uiAgent.isProcessing,
+              builder: (_, isProcessing, _) {
+                if (!isProcessing) return Container();
+                return const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(),
+                );
+              },
+            ),
+
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
@@ -93,21 +119,17 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) {
       return;
     }
+    _textController.clear();
 
     setState(() {
-      _messages.add('You: $text');
+      _messages.add(MessageController(text: 'You: $text'));
     });
 
-    _textController.clear();
     _scrollToBottom();
 
-    setState(() => _isLoading = true);
-    final response = await _aiService.sendMessageStream(text);
+    await _uiAgent.sendRequest(UserMessage([TextPart(text)]));
 
-    setState(() {
-      _messages.add('Bot: $response');
-      _isLoading = false;
-    });
+    setState(() {});
     _scrollToBottom();
   }
 

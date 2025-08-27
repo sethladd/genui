@@ -54,7 +54,13 @@ class SurfaceRemoved extends GenUiUpdate {
   const SurfaceRemoved(super.surfaceId);
 }
 
-class GenUiManager {
+abstract interface class SurfaceBuilder {
+  Stream<GenUiUpdate> get updates;
+  ValueNotifier<UiDefinition?> surface(String surfaceId);
+  Catalog get catalog;
+}
+
+class GenUiManager implements SurfaceBuilder {
   GenUiManager({Catalog? catalog}) : catalog = catalog ?? coreCatalog;
 
   final _surfaces = <String, ValueNotifier<UiDefinition?>>{};
@@ -64,8 +70,10 @@ class GenUiManager {
 
   Map<String, ValueNotifier<UiDefinition?>> get surfaces => _surfaces;
 
+  @override
   Stream<GenUiUpdate> get updates => _updates.stream;
 
+  @override
   final Catalog catalog;
 
   /// Returns a list of [AiTool]s that can be used to manipulate the UI.
@@ -82,6 +90,7 @@ class GenUiManager {
     ];
   }
 
+  @override
   ValueNotifier<UiDefinition?> surface(String surfaceId) {
     return _surfaces.putIfAbsent(surfaceId, () => ValueNotifier(null));
   }
