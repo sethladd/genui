@@ -12,6 +12,7 @@ import 'package:logging/logging.dart';
 import 'firebase_options.dart';
 import 'src/asset_images.dart';
 import 'src/catalog.dart';
+import 'src/widgets/conversation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -270,7 +271,7 @@ class _TravelPlannerPageState extends State<TravelPlannerPage> {
               Expanded(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1000),
-                  child: ConversationWidget(
+                  child: Conversation(
                     messages: _conversation,
                     manager: _genUiManager,
                     onEvent: _handleUiEvent,
