@@ -113,14 +113,9 @@ class _TravelPlannerPageState extends State<TravelPlannerPage> {
         switch (update) {
           case SurfaceAdded(:final surfaceId, :final definition):
             _conversation.add(
-              AiUiMessage(
-                definition: {
-                  'root': definition.root,
-                  'widgets': definition.widgetList,
-                },
-                surfaceId: surfaceId,
-              ),
+              AiUiMessage(definition: definition, surfaceId: surfaceId),
             );
+
           case SurfaceRemoved(:final surfaceId):
             _conversation.removeWhere(
               (m) => m is AiUiMessage && m.surfaceId == surfaceId,
@@ -131,10 +126,7 @@ class _TravelPlannerPageState extends State<TravelPlannerPage> {
             );
             if (index != -1) {
               _conversation[index] = AiUiMessage(
-                definition: {
-                  'root': definition.root,
-                  'widgets': definition.widgetList,
-                },
+                definition: definition,
                 surfaceId: surfaceId,
               );
             }
