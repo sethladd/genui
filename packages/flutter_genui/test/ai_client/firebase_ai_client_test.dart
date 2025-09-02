@@ -65,7 +65,7 @@ void main() {
       fakeModel.response = GenerateContentResponse([
         Candidate(
           Content.model([
-            FunctionCall('provideFinalOutput', {
+            const FunctionCall('provideFinalOutput', {
               'output': {'key': 'value'},
             }),
           ]),
@@ -101,7 +101,7 @@ void main() {
         // First response: model calls the tool
         GenerateContentResponse([
           Candidate(
-            Content.model([FunctionCall('myTool', {})]),
+            Content.model([const FunctionCall('myTool', {})]),
             [],
             null,
             null,
@@ -112,7 +112,7 @@ void main() {
         GenerateContentResponse([
           Candidate(
             Content.model([
-              FunctionCall('provideFinalOutput', {
+              const FunctionCall('provideFinalOutput', {
                 'output': {'final': 'result'},
               }),
             ]),
@@ -146,7 +146,7 @@ void main() {
       fakeModel.responses = [
         GenerateContentResponse([
           Candidate(
-            Content.model([FunctionCall('badTool', {})]),
+            Content.model([const FunctionCall('badTool', {})]),
             [],
             null,
             null,
@@ -156,7 +156,7 @@ void main() {
         GenerateContentResponse([
           Candidate(
             Content.model([
-              FunctionCall('provideFinalOutput', {
+              const FunctionCall('provideFinalOutput', {
                 'output': {'final': 'result'},
               }),
             ]),
@@ -191,7 +191,7 @@ void main() {
       client = createClient();
       fakeModel.response = GenerateContentResponse([
         Candidate(
-          Content.model([FunctionCall('unknownTool', {})]),
+          Content.model([const FunctionCall('unknownTool', {})]),
           [],
           null,
           null,
@@ -211,7 +211,7 @@ void main() {
       client = createClient();
       fakeModel.response = GenerateContentResponse([
         Candidate(
-          Content.model([firebase_ai.TextPart('unexpected text')]),
+          Content.model([const firebase_ai.TextPart('unexpected text')]),
           [],
           null,
           FinishReason.stop,
@@ -238,7 +238,7 @@ void main() {
       // Make the model call the tool repeatedly
       fakeModel.response = GenerateContentResponse([
         Candidate(
-          Content.model([FunctionCall('loopTool', {})]),
+          Content.model([const FunctionCall('loopTool', {})]),
           [],
           null,
           null,
@@ -267,7 +267,7 @@ void main() {
       fakeModel.response = GenerateContentResponse([
         Candidate(
           Content.model([
-            FunctionCall('provideFinalOutput', {
+            const FunctionCall('provideFinalOutput', {
               'output': {'key': 'value'},
             }),
           ]),
