@@ -11,6 +11,7 @@ import 'package:flutter_genui_firebase_ai/flutter_genui_firebase_ai.dart';
 
 import 'asset_images.dart';
 import 'catalog.dart';
+import 'tools/list_hotels_tool.dart';
 import 'widgets/conversation.dart';
 
 Future<void> loadImagesJson() async {
@@ -45,7 +46,8 @@ class TravelPlannerPage extends StatefulWidget {
   State<TravelPlannerPage> createState() => _TravelPlannerPageState();
 }
 
-class _TravelPlannerPageState extends State<TravelPlannerPage> {
+class _TravelPlannerPageState extends State<TravelPlannerPage>
+    with AutomaticKeepAliveClientMixin {
   late final GenUiManager _genUiManager;
   late final AiClient _aiClient;
   late final StreamSubscription<UserMessage> _userMessageSubscription;
@@ -70,12 +72,11 @@ class _TravelPlannerPageState extends State<TravelPlannerPage> {
     _userMessageSubscription = _genUiManager.onSubmit.listen(
       _handleUserMessageFromUi,
     );
+    final tools = _genUiManager.getTools();
+    tools.add(ListHotelsTool(onListHotels: onListHotels));
     _aiClient =
         widget.aiClient ??
-        FirebaseAiClient(
-          tools: _genUiManager.getTools(),
-          systemInstruction: prompt,
-        );
+        FirebaseAiClient(tools: tools, systemInstruction: prompt);
     _genUiManager.surfaceUpdates.listen((update) {
       setState(() {
         switch (update) {
@@ -187,6 +188,7 @@ class _TravelPlannerPageState extends State<TravelPlannerPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return SafeArea(
       child: Center(
         child: Column(
@@ -214,6 +216,9 @@ class _TravelPlannerPageState extends State<TravelPlannerPage> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }
 
 class _ChatInput extends StatelessWidget {
@@ -330,6 +335,10 @@ to the user.
     involves booking every accommodation, transport and activity in the itinerary
     one step at a time.
 
+    When booking accommodation, you should use the `listHotels` tool to search
+    for hotels. You can then show the user the different options in a
+    `travelCarousel`.
+
     Here, you should just focus on one item at a time, using an `inputGroup`
     with chips to ask the user for preferences, and the `travelCarousel` to show
     the user different options. When the user chooses an option, you can confirm
@@ -368,7 +377,7 @@ update existing content.
   at the bottom of the conversation.
 - Updating surfaces: You should update surfaces when you are running an
 iterative search flow, e.g. the user is adjusting filter values and generating
-an itinerary or a booking accomodation etc. This is less confusing for the user
+an itinerary or a booking accommodation etc. This is less confusing for the user
 because it avoids confusing the conversation with many versions of the same
 itinerary etc.
 
@@ -389,7 +398,7 @@ carousel. If there are only 2 or 3 obvious options, just think of some relevant
 alternatives that the user might be interested in.
 
 - Guiding the user: When the user has completes some action, e.g. they confirm
-they want to book some accomodation or activity, always show a trailhead
+they want to book some accommodation or activity, always show a trailhead
 suggesting what the user might want to do next (e.g. book the next detail in the
 itinerary, repeat a search, research some related topic) so that they can click
 rather than typing.
