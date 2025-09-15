@@ -3,7 +3,15 @@
 // found in the LICENSE file.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:travel_app/src/tools/list_hotels_tool.dart';
+import 'package:travel_app/src/tools/booking/list_hotels_tool.dart';
+import 'package:travel_app/src/tools/booking/model.dart';
+
+final _hotelSearch = HotelSearch(
+  query: 'hotels in New York',
+  checkIn: DateTime.parse('2025-10-01T00:00:00.000'),
+  checkOut: DateTime.parse('2025-10-05T00:00:00.000'),
+  guests: 2,
+);
 
 void main() {
   group('ListHotelsTool', () {
@@ -14,7 +22,8 @@ void main() {
           'location': 'New York, NY',
           'pricePerNight': 299.99,
           'images': ['image1.jpg', 'image2.jpg'],
-          'listingId': '12345',
+          'listingSelectionId': 'a-random-id',
+          'search': _hotelSearch.toJson(),
         };
 
         final listing = HotelListing.fromJson(json);
@@ -23,22 +32,26 @@ void main() {
         expect(listing.location, 'New York, NY');
         expect(listing.pricePerNight, 299.99);
         expect(listing.images, ['image1.jpg', 'image2.jpg']);
-        expect(listing.listingId, '12345');
+        expect(listing.listingSelectionId, isNotEmpty);
 
-        expect(listing.toJson(), json);
+        expect(
+          listing.toJson(),
+          json..['listingSelectionId'] = listing.listingSelectionId,
+        );
       });
     });
 
     group('HotelSearchResult', () {
       test('fromJson and toJson', () {
-        final json = {
+        final json = <String, Object?>{
           'listings': [
             {
               'name': 'The Grand Hotel',
               'location': 'New York, NY',
               'pricePerNight': 299.99,
               'images': ['image1.jpg', 'image2.jpg'],
-              'listingId': '12345',
+              'listingSelectionId': 'a-random-id',
+              'search': _hotelSearch.toJson(),
             },
           ],
         };
@@ -47,8 +60,12 @@ void main() {
 
         expect(searchResult.listings.length, 1);
         expect(searchResult.listings.first.name, 'The Grand Hotel');
+        expect(searchResult.listings.first.listingSelectionId, isNotEmpty);
 
-        expect(searchResult.toJson(), json);
+        expect(
+          searchResult.toJson(),
+          json..['listings'] = [searchResult.listings.first.toJson()],
+        );
       });
     });
 
@@ -77,25 +94,24 @@ void main() {
 
     group('ListHotelsTool', () {
       test('invoke calls onListHotels and returns correct JSON', () async {
-        final searchResult = HotelSearchResult(
-          listings: [
-            HotelListing(
-              name: 'The Grand Hotel',
-              location: 'New York, NY',
-              pricePerNight: 299.99,
-              images: ['image1.jpg', 'image2.jpg'],
-              listingId: '12345',
-            ),
-          ],
-        );
-
         final tool = ListHotelsTool(
-          onListHotels: (search) {
+          onListHotels: (search) async {
             expect(search.query, 'hotels in New York');
             expect(search.checkIn, DateTime.parse('2025-10-01T00:00:00.000'));
             expect(search.checkOut, DateTime.parse('2025-10-05T00:00:00.000'));
             expect(search.guests, 2);
-            return searchResult;
+            return HotelSearchResult(
+              listings: [
+                HotelListing(
+                  name: 'The Grand Hotel',
+                  location: 'New York, NY',
+                  pricePerNight: 299.99,
+                  images: ['image1.jpg', 'image2.jpg'],
+                  listingSelectionId: 'a-random-id',
+                  search: _hotelSearch,
+                ),
+              ],
+            );
           },
         );
 
@@ -107,8 +123,8 @@ void main() {
         };
 
         final result = await tool.invoke(args);
-
-        expect(result, searchResult.toJson());
+        final searchResult = HotelSearchResult.fromJson(result);
+        expect(searchResult.listings.first.listingSelectionId, isNotEmpty);
       });
     });
   });

@@ -11,7 +11,8 @@ import 'package:flutter_genui_firebase_ai/flutter_genui_firebase_ai.dart';
 
 import 'asset_images.dart';
 import 'catalog.dart';
-import 'tools/list_hotels_tool.dart';
+import 'tools/booking/booking_service.dart';
+import 'tools/booking/list_hotels_tool.dart';
 import 'widgets/conversation.dart';
 
 Future<void> loadImagesJson() async {
@@ -73,7 +74,7 @@ class _TravelPlannerPageState extends State<TravelPlannerPage>
       _handleUserMessageFromUi,
     );
     final tools = _genUiManager.getTools();
-    tools.add(ListHotelsTool(onListHotels: onListHotels));
+    tools.add(ListHotelsTool(onListHotels: BookingService.instance.listHotels));
     _aiClient =
         widget.aiClient ??
         FirebaseAiClient(tools: tools, systemInstruction: prompt);
@@ -322,7 +323,6 @@ to the user.
     of time, the budget, preferred activity types etc.
 
     Then, when the user clicks search, you should update the surface to have
-<<<<<<< HEAD
     a Column with the existing inputGroup, an itineraryWithDetails. When
     creating the itinerary, include all necessary `itineraryEntry` items for
     hotels and transport with generic details and a status of `choiceRequired`.
@@ -335,10 +335,6 @@ to the user.
     involves booking every accommodation, transport and activity in the itinerary
     one step at a time.
 
-    When booking accommodation, you should use the `listHotels` tool to search
-    for hotels. You can then show the user the different options in a
-    `travelCarousel`.
-
     Here, you should just focus on one item at a time, using an `inputGroup`
     with chips to ask the user for preferences, and the `travelCarousel` to show
     the user different options. When the user chooses an option, you can confirm
@@ -347,6 +343,14 @@ to the user.
     update the original `itineraryWithDetails` to reflect the booking by
     updating the relevant `itineraryEntry` to have the status `chosen` and
     including the booking details in the `bodyText`.
+
+    When booking accommodation, you should use the `listHotels` tool to search
+    for hotels, and then pass the listingSelectionId to `travelCarousel` of the selected hotel. You can then show the user the different options in a
+    `travelCarousel`. When user selects a hotel, remember the listingSelectionId for the next step.
+
+    After selecting hotel, suggest the user to check out the
+    itinerary and use `listingsBooker`, passing previously remembered listingSelectionId
+    to the parameter listingSelectionIds.
 
 IMPORTANT: The user may start from different steps in the flow, and it is your job to
 understand which step of the flow the user is at, and when they are ready to
