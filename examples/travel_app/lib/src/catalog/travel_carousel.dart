@@ -290,13 +290,13 @@ JsonMap _hotelExample() {
       {
         'id': 'image_1',
         'widget': {
-          'Image': {'fit': 'cover', 'assetName': hotel1.images[0]},
+          'Image': {'fit': 'cover', 'location': hotel1.images[0]},
         },
       },
       {
         'id': 'image_2',
         'widget': {
-          'Image': {'fit': 'cover', 'assetName': hotel2.images[0]},
+          'Image': {'fit': 'cover', 'location': hotel2.images[0]},
         },
       },
     ],
@@ -355,7 +355,7 @@ JsonMap _inspirationExample() => {
       'widget': {
         'Image': {
           'fit': 'cover',
-          'assetName': 'assets/travel_images/santorini_panorama.jpg',
+          'location': 'assets/travel_images/santorini_panorama.jpg',
         },
       },
     },
@@ -364,7 +364,7 @@ JsonMap _inspirationExample() => {
       'widget': {
         'Image': {
           'fit': 'cover',
-          'assetName':
+          'location':
               'assets/travel_images/akrotiri_spring_fresco_santorini.jpg',
         },
       },
@@ -373,7 +373,7 @@ JsonMap _inspirationExample() => {
       'id': 'santorini_caldera_image',
       'widget': {
         'Image': {
-          'assetName': 'assets/travel_images/santorini_from_space.jpg',
+          'location': 'assets/travel_images/santorini_from_space.jpg',
           'fit': 'cover',
         },
       },
@@ -382,7 +382,7 @@ JsonMap _inspirationExample() => {
       'widget': {
         'Image': {
           'fit': 'cover',
-          'assetName':
+          'location':
               'assets/travel_images/saffron_gatherers_fresco_santorini.jpg',
         },
       },
