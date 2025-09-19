@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../core/interpreter.dart';
 import '../core/widget_registry.dart';
 import '../models/component.dart';
+import 'component_properties_visitor.dart';
 import 'gulf_provider.dart';
 
 /// The main entry point for rendering a UI from the GULF Streaming Protocol.
@@ -70,6 +71,9 @@ class _GulfViewState extends State<GulfView> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.interpreter.error != null) {
+      return Center(child: Text('Error: ${widget.interpreter.error}'));
+    }
     if (!widget.interpreter.isReadyToRender) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -109,27 +113,43 @@ class _LayoutEngine extends StatelessWidget {
       return const Text('Error: component not found');
     }
 
-    if (component.children?.template != null) {
-      return _buildNodeWithTemplate(context, component, newVisited);
-    }
-
-    final builder = registry.getBuilder(component.type);
+    final properties = component.componentProperties;
+    final builder = registry.getBuilder(properties.runtimeType.toString());
     if (builder == null) {
-      return Text('Error: unknown component type ${component.type}');
+      return Text(
+        'Error: Unknown component type: ${properties.runtimeType.toString()}',
+      );
     }
 
-    final properties = _resolveProperties(component, null);
     final children = <String, List<Widget>>{};
-    if (component.child != null) {
-      children['child'] = [_buildNode(context, component.child!, newVisited)];
-    }
-    if (component.children?.explicitList != null) {
-      children['children'] = component.children!.explicitList!
-          .map((id) => _buildNode(context, id, newVisited))
+    if (properties is HasChildren) {
+      final childrenProp = (properties as HasChildren).children;
+      if (childrenProp.explicitList != null) {
+        children['children'] = childrenProp.explicitList!
+            .map((id) => _buildNode(context, id, newVisited))
+            .toList();
+      } else if (childrenProp.template != null) {
+        return _buildNodeWithTemplate(context, component, newVisited);
+      }
+    } else if (properties is CardProperties) {
+      children['child'] = [_buildNode(context, properties.child, newVisited)];
+    } else if (properties is TabsProperties) {
+      children['children'] = properties.tabItems
+          .map((item) => _buildNode(context, item.child, newVisited))
           .toList();
+    } else if (properties is ModalProperties) {
+      children['entryPointChild'] = [
+        _buildNode(context, properties.entryPointChild, newVisited),
+      ];
+      children['contentChild'] = [
+        _buildNode(context, properties.contentChild, newVisited),
+      ];
     }
 
-    return builder(context, component, properties, children);
+    final visitor = ComponentPropertiesVisitor(interpreter);
+    final resolvedProperties = visitor.visit(properties, null);
+
+    return builder(context, component, resolvedProperties, children);
   }
 
   Widget _buildNodeWithTemplate(
@@ -137,7 +157,8 @@ class _LayoutEngine extends StatelessWidget {
     Component component,
     Set<String> visited,
   ) {
-    final template = component.children!.template!;
+    final properties = component.componentProperties as HasChildren;
+    final template = properties.children.template!;
     final data = interpreter.resolveDataBinding(template.dataBinding);
     if (data is! List) {
       return const SizedBox.shrink();
@@ -150,73 +171,35 @@ class _LayoutEngine extends StatelessWidget {
     if (templateComponent == null) {
       return const Text('Error: template component not found');
     }
-    final builder = registry.getBuilder(component.type);
+    final builder = registry.getBuilder(properties.runtimeType.toString());
     if (builder == null) {
-      return Text('Error: unknown component type ${component.type}');
+      return Text(
+        'Error: unknown component type ${properties.runtimeType.toString()}',
+      );
     }
-    final children = data.map((itemData) {
-      final properties = _resolveProperties(
-        templateComponent,
-        itemData as Map<String, dynamic>,
+    final children = data.map((Object? itemData) {
+      final visitor = ComponentPropertiesVisitor(interpreter);
+      final resolvedProperties = visitor.visit(
+        templateComponent.componentProperties,
+        itemData as Map<String, Object?>,
       );
       final itemChildren = <String, List<Widget>>{};
-      final itemBuilder = registry.getBuilder(templateComponent.type);
+      final itemBuilder = registry.getBuilder(
+        templateComponent.componentProperties.runtimeType.toString(),
+      );
       if (itemBuilder == null) {
-        return Text('Error: unknown component type ${templateComponent.type}');
+        return Text(
+          'Error: Unknown component type: '
+          '${templateComponent.componentProperties.runtimeType.toString()}',
+        );
       }
-      return itemBuilder(context, templateComponent, properties, itemChildren);
+      return itemBuilder(
+        context,
+        templateComponent,
+        resolvedProperties,
+        itemChildren,
+      );
     }).toList();
     return builder(context, component, {}, {'children': children});
-  }
-
-  Object? _resolveValue(Value? value, Map<String, dynamic>? itemData) {
-    if (value == null) {
-      return null;
-    }
-    if (value.literalString != null) {
-      return value.literalString;
-    } else if (value.literalNumber != null) {
-      return value.literalNumber;
-    } else if (value.literalBoolean != null) {
-      return value.literalBoolean;
-    } else if (value.literalObject != null) {
-      return value.literalObject;
-    } else if (value.literalArray != null) {
-      return value.literalArray;
-    } else if (value.path != null) {
-      if (itemData != null) {
-        return itemData[value.path!.substring(1)];
-      } else {
-        return interpreter.resolveDataBinding(value.path!);
-      }
-    }
-    return null;
-  }
-
-  Map<String, Object?> _resolveProperties(
-    Component component,
-    Map<String, dynamic>? itemData,
-  ) {
-    final properties = <String, Object?>{};
-    final componentJson = component.toJson();
-
-    for (final entry in componentJson.entries) {
-      final key = entry.key;
-      final value = entry.value;
-
-      if (value == null) {
-        continue;
-      }
-
-      if (key == 'value') {
-        properties['text'] = _resolveValue(
-          Value.fromJson(value as Map<String, dynamic>),
-          itemData,
-        );
-      } else {
-        properties[key] = value;
-      }
-    }
-    return properties;
   }
 }
