@@ -11,7 +11,7 @@ import 'package:json_schema_builder/json_schema_builder.dart';
 
 final _schema = S.object(
   properties: {
-    'value': S.string(
+    'value': GulfSchemas.stringReference(
       description: 'The initial date of the date picker in yyyy-mm-dd format.',
     ),
     'label': S.string(description: 'Label for the date picker.'),
@@ -19,10 +19,10 @@ final _schema = S.object(
 );
 
 extension type _DatePickerData.fromMap(JsonMap _json) {
-  factory _DatePickerData({String? value, String? label}) =>
+  factory _DatePickerData({JsonMap? value, String? label}) =>
       _DatePickerData.fromMap({'value': value, 'label': label});
 
-  String? get value => _json['value'] as String?;
+  JsonMap? get value => _json['value'] as JsonMap?;
   String? get label => _json['label'] as String?;
 }
 
@@ -119,7 +119,7 @@ final dateInputChip = CatalogItem(
           'id': 'date_picker',
           'widget': {
             'DateInputChip': {
-              'value': '1871-07-22',
+              'value': {'literalString': '1871-07-22'},
               'label': 'Your birth date',
             },
           },
@@ -127,7 +127,6 @@ final dateInputChip = CatalogItem(
       ],
     },
   ],
-
   widgetBuilder:
       ({
         required data,
@@ -135,13 +134,25 @@ final dateInputChip = CatalogItem(
         required buildChild,
         required dispatchEvent,
         required context,
-        required values,
+        required dataContext,
       }) {
         final datePickerData = _DatePickerData.fromMap(data as JsonMap);
-        return _DateInputChip(
-          initialValue: datePickerData.value,
-          label: datePickerData.label,
-          onChanged: (newValue) => values[id] = newValue,
+        final notifier = dataContext.subscribeToString(datePickerData.value);
+        final path = datePickerData.value?['path'] as String?;
+
+        return ValueListenableBuilder<String?>(
+          valueListenable: notifier,
+          builder: (context, currentValue, child) {
+            return _DateInputChip(
+              initialValue: currentValue,
+              label: datePickerData.label,
+              onChanged: (newValue) {
+                if (path != null) {
+                  dataContext.update(path, newValue);
+                }
+              },
+            );
+          },
         );
       },
 );
