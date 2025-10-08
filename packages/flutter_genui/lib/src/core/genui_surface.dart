@@ -80,12 +80,22 @@ class _GenUiSurfaceState extends State<GenUiSurface> {
       return Placeholder(child: Text('Widget with id: $widgetId not found.'));
     }
 
+    if (data is! JsonMap || data['widget'] is! JsonMap) {
+      genUiLogger.severe('Widget with id: $widgetId has malformed data.');
+      return Placeholder(
+        child: Text('Widget with id: $widgetId has malformed data.'),
+      );
+    }
+    final widgetData = data['widget'] as JsonMap;
+
     return widget.host.catalog.buildWidget(
-      data as JsonMap,
-      (String childId) => _buildWidget(definition, childId, dataContext),
-      _dispatchEvent,
-      context,
-      dataContext,
+      id: widgetId,
+      widgetData: widgetData,
+      buildChild: (String childId) =>
+          _buildWidget(definition, childId, dataContext),
+      dispatchEvent: _dispatchEvent,
+      context: context,
+      dataContext: dataContext,
     );
   }
 

@@ -53,9 +53,41 @@ class AddOrUpdateSurfaceTool extends AiTool<JsonMap> {
                        'the ID of one of the widgets in the `widgets` list.',
                  ),
                  'widgets': S.list(
-                   items: catalog.schema,
                    description: 'A list of widget definitions.',
                    minItems: 1,
+                   items: S.object(
+                     description:
+                         'Represents a *single* widget in a UI widget tree. '
+                         'This widget could be one of many supported types.',
+                     properties: {
+                       'id': S.string(),
+                       'widget': Schema.combined(
+                         description:
+                             'A wrapper object for a single widget '
+                             'definition. It MUST contain exactly one key, '
+                             'where the key is the name of a widget type '
+                             '(e.g., "Column", "Text", "ElevatedButton") from '
+                             'the list of allowed properties. The value is an '
+                             'object containing the definition of that widget '
+                             'using its properties. For example: '
+                             '`{"TypeOfWidget": {"widget_property": "Value of '
+                             'property"}}`',
+                         anyOf: [
+                           for (var entry
+                               in ((catalog.definition as ObjectSchema)
+                                           .properties!['components']!
+                                       as ObjectSchema)
+                                   .properties!
+                                   .entries)
+                             Schema.object(
+                               properties: {entry.key: entry.value},
+                               required: [entry.key],
+                             ),
+                         ],
+                       ),
+                     },
+                     required: ['id', 'widget'],
+                   ),
                  ),
                },
                description:
