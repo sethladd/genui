@@ -4,16 +4,19 @@
 
 import 'dart:async';
 
+import 'exceptions.dart';
+import 'logging_context.dart';
 import 'schema/schema.dart';
 import 'schema_cache.dart';
+
 import 'utils.dart';
 
 class SchemaRegistry {
   final SchemaCache _schemaCache;
   final Map<Uri, Schema> _schemas = {};
 
-  SchemaRegistry({SchemaCache? schemaCache})
-    : _schemaCache = schemaCache ?? SchemaCache();
+  SchemaRegistry({SchemaCache? schemaCache, LoggingContext? loggingContext})
+    : _schemaCache = schemaCache ?? SchemaCache(loggingContext: loggingContext);
 
   void addSchema(Uri uri, Schema schema) {
     final uriWithoutFragment = uri.removeFragment();
@@ -27,14 +30,18 @@ class SchemaRegistry {
       return _getSchemaFromFragment(uri, _schemas[uriWithoutFragment]!);
     }
 
-    final schema = await _schemaCache.get(uriWithoutFragment);
-    if (schema == null) {
-      return null;
-    }
-    _schemas[uriWithoutFragment] = schema;
-    _registerIds(schema, uriWithoutFragment);
+    try {
+      final schema = await _schemaCache.get(uriWithoutFragment);
+      if (schema == null) {
+        return null;
+      }
+      _schemas[uriWithoutFragment] = schema;
+      _registerIds(schema, uriWithoutFragment);
 
-    return _getSchemaFromFragment(uri, schema);
+      return _getSchemaFromFragment(uri, schema);
+    } on SchemaFetchException {
+      rethrow;
+    }
   }
 
   Uri? getUriForSchema(Schema schema) {
@@ -44,6 +51,10 @@ class SchemaRegistry {
       }
     }
     return null;
+  }
+
+  void dispose() {
+    _schemaCache.close();
   }
 
   void _registerIds(Schema schema, Uri baseUri) {
