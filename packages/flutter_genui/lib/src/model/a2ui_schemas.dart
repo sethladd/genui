@@ -72,25 +72,21 @@ class A2uiSchemas {
   static Schema action({String? description}) => S.object(
     description: description,
     properties: {
-      'action': S.string(),
+      'actionName': S.string(
+        description: 'The name of the action to be sent to the server.',
+      ),
       'context': S.list(
+        description:
+            'A list of name-value pairs to be sent with the action. The '
+            'values are bind to the data model with a path, and should bind '
+            'to all of the related data for this action.',
         items: S.object(
-          properties: {
-            'key': S.string(),
-            'value': S.object(
-              properties: {
-                'path': S.string(),
-                'literalString': S.string(),
-                'literalNumber': S.number(),
-                'literalBoolean': S.boolean(),
-              },
-            ),
-          },
-          required: ['key', 'value'],
+          properties: {'key': S.string(), 'path': S.string()},
+          required: ['key', 'path'],
         ),
       ),
     },
-    required: ['action'],
+    required: ['actionName'],
   );
 
   /// Schema for a value that can be either a literal array of strings or a

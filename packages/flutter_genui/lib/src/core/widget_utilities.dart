@@ -68,3 +68,17 @@ extension DataContextExtensions on DataContext {
     return _subscribeToValue<List<dynamic>>(ref, 'literalStringArray');
   }
 }
+
+/// Resolves a context map definition against a [DataContext].
+JsonMap resolveContext(
+  DataContext dataContext,
+  List<Object?> contextDefinitions,
+) {
+  final resolved = <String, Object?>{};
+  for (final contextEntry in contextDefinitions) {
+    final entry = contextEntry as JsonMap;
+    final key = entry['key']! as String;
+    resolved[key] = dataContext.getValue(entry['path'] as String);
+  }
+  return resolved;
+}

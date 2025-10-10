@@ -17,21 +17,31 @@ final _schema = S.object(
           'be input types such as OptionsFilterChipInput.',
       items: S.string(),
     ),
+    'action': A2uiSchemas.action(
+      description:
+          'The action to perform when the submit button is pressed. '
+          'The context for this action should include references to the values '
+          'of all the input chips inside this group, so that the model can '
+          'know what the user has selected.',
+    ),
   },
-  required: ['submitLabel', 'children'],
+  required: ['submitLabel', 'children', 'action'],
 );
 
 extension type _InputGroupData.fromMap(Map<String, Object?> _json) {
   factory _InputGroupData({
     required JsonMap submitLabel,
     required List<String> children,
+    required JsonMap action,
   }) => _InputGroupData.fromMap({
     'submitLabel': submitLabel,
     'children': children,
+    'action': action,
   });
 
   JsonMap get submitLabel => _json['submitLabel'] as JsonMap;
   List<String> get children => (_json['children'] as List).cast<String>();
+  JsonMap get action => _json['action'] as JsonMap;
 }
 
 /// A container widget that visually groups a collection of input chips.
@@ -110,6 +120,10 @@ final inputGroup = CatalogItem(
         );
 
         final children = inputGroupData.children;
+        final actionData = inputGroupData.action;
+        final actionName = actionData['actionName'] as String;
+        final contextDefinition =
+            (actionData['context'] as List<Object?>?) ?? <Object?>[];
 
         return Card(
           color: Theme.of(context).colorScheme.primaryContainer,
@@ -128,13 +142,19 @@ final inputGroup = CatalogItem(
                   valueListenable: notifier,
                   builder: (context, submitLabel, child) {
                     return ElevatedButton(
-                      onPressed: () => dispatchEvent(
-                        UiActionEvent(
-                          widgetId: id,
-                          eventType: 'submit',
-                          value: {},
-                        ),
-                      ),
+                      onPressed: () {
+                        final resolvedContext = resolveContext(
+                          dataContext,
+                          contextDefinition,
+                        );
+                        dispatchEvent(
+                          UserActionEvent(
+                            actionName: actionName,
+                            sourceComponentId: id,
+                            context: resolvedContext,
+                          ),
+                        );
+                      },
                       child: Text(submitLabel ?? ''),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.primary,
