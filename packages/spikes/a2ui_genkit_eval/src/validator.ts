@@ -2,51 +2,55 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { ComponentUpdateSchemaMatcher } from './component_update_schema_matcher';
+import { ComponentUpdateSchemaMatcher } from "./component_update_schema_matcher";
+import { SchemaMatcher } from "./schema_matcher";
 
 export function validateSchema(
   data: any,
   schemaName: string,
-  matchers?: ComponentUpdateSchemaMatcher[]
+  matchers?: SchemaMatcher[],
 ): string[] {
   const errors: string[] = [];
 
-  switch (schemaName) {
-    case 'stream_header.json':
-      validateStreamHeader(data, errors);
-      break;
-    case 'component_update.json':
-      validateComponentUpdate(data, errors);
-      if (matchers) {
-        for (const matcher of matchers) {
-          const result = matcher.validate(data);
-          if (!result.success) {
-            errors.push(result.error!);
-          }
-        }
+  if (schemaName !== "a2ui_protocol_message.json") {
+    errors.push(`Unknown schema for validation: ${schemaName}`);
+    return errors;
+  }
+
+  if (data.surfaceUpdate) {
+    validateComponentUpdate(data.surfaceUpdate, errors);
+  } else if (data.dataModelUpdate) {
+    validateDataModelUpdate(data.dataModelUpdate, errors);
+  } else if (data.beginRendering) {
+    validateBeginRendering(data.beginRendering, errors);
+  } else if (data.surfaceDeletion) {
+    validateSurfaceDeletion(data.surfaceDeletion, errors);
+  } else {
+    errors.push(
+      "A2UI Protocol message must have one of: surfaceUpdate, dataModelUpdate, beginRendering, surfaceDeletion.",
+    );
+  }
+
+  if (matchers) {
+    for (const matcher of matchers) {
+      const result = matcher.validate(data);
+      if (!result.success) {
+        errors.push(result.error!);
       }
-      break;
-    case 'data_model_update.json':
-      validateDataModelUpdate(data, errors);
-      break;
-    case 'begin_rendering.json':
-      validateBeginRendering(data, errors);
-      break;
-    default:
-      errors.push(`Unknown schema for validation: ${schemaName}`);
+    }
   }
 
   return errors;
 }
 
-function validateStreamHeader(data: any, errors: string[]) {
-  if (!data.version) {
-    errors.push("StreamHeader must have a 'version' property.");
+function validateSurfaceDeletion(data: any, errors: string[]) {
+  if (data.delete !== true) {
+    errors.push('SurfaceDeletion must have a "delete" property set to true.');
   }
-  const allowed = ['version'];
+  const allowed = ["delete"];
   for (const key in data) {
     if (!allowed.includes(key)) {
-      errors.push(`StreamHeader has unexpected property: ${key}`);
+      errors.push(`SurfaceDeletion has unexpected property: ${key}`);
     }
   }
 }
@@ -76,7 +80,7 @@ function validateDataModelUpdate(data: any, errors: string[]) {
   if (data.contents === undefined) {
     errors.push("DataModelUpdate must have a 'contents' property.");
   }
-  const allowed = ['path', 'contents'];
+  const allowed = ["path", "contents"];
   for (const key in data) {
     if (!allowed.includes(key)) {
       errors.push(`DataModelUpdate has unexpected property: ${key}`);
@@ -93,21 +97,23 @@ function validateBeginRendering(data: any, errors: string[]) {
 function validateComponent(
   component: any,
   allIds: Set<string>,
-  errors: string[]
+  errors: string[],
 ) {
   if (!component.id) {
     errors.push(`Component is missing an 'id'.`);
     return;
   }
   if (!component.componentProperties) {
-    errors.push(`Component '${component.id}' is missing 'componentProperties'.`);
+    errors.push(
+      `Component '${component.id}' is missing 'componentProperties'.`,
+    );
     return;
   }
 
   const componentTypes = Object.keys(component.componentProperties);
   if (componentTypes.length !== 1) {
     errors.push(
-      `Component '${component.id}' must have exactly one property in 'componentProperties', but found ${componentTypes.length}.`
+      `Component '${component.id}' must have exactly one property in 'componentProperties', but found ${componentTypes.length}.`,
     );
     return;
   }
@@ -119,7 +125,7 @@ function validateComponent(
     for (const prop of props) {
       if (properties[prop] === undefined) {
         errors.push(
-          `Component '${component.id}' of type '${componentType}' is missing required property '${prop}'.`
+          `Component '${component.id}' of type '${componentType}' is missing required property '${prop}'.`,
         );
       }
     }
@@ -129,53 +135,53 @@ function validateComponent(
     for (const id of ids) {
       if (id && !allIds.has(id)) {
         errors.push(
-          `Component '${component.id}' references non-existent component ID '${id}'.`
+          `Component '${component.id}' references non-existent component ID '${id}'.`,
         );
       }
     }
   };
 
   switch (componentType) {
-    case 'Heading':
-      checkRequired(['text']);
+    case "Heading":
+      checkRequired(["text"]);
       break;
-    case 'Text':
-      checkRequired(['text']);
+    case "Text":
+      checkRequired(["text"]);
       break;
-    case 'Image':
-      checkRequired(['url']);
+    case "Image":
+      checkRequired(["url"]);
       break;
-    case 'Video':
-      checkRequired(['url']);
+    case "Video":
+      checkRequired(["url"]);
       break;
-    case 'AudioPlayer':
-      checkRequired(['url']);
+    case "AudioPlayer":
+      checkRequired(["url"]);
       break;
-    case 'TextField':
-      checkRequired(['label']);
+    case "TextField":
+      checkRequired(["label"]);
       break;
-    case 'DateTimeInput':
-      checkRequired(['value']);
+    case "DateTimeInput":
+      checkRequired(["value"]);
       break;
-    case 'MultipleChoice':
-      checkRequired(['selections']);
+    case "MultipleChoice":
+      checkRequired(["selections"]);
       break;
-    case 'Slider':
-      checkRequired(['value']);
+    case "Slider":
+      checkRequired(["value"]);
       break;
-    case 'CheckBox':
-      checkRequired(['value', 'label']);
+    case "CheckBox":
+      checkRequired(["value", "label"]);
       break;
-    case 'Row':
-    case 'Column':
-    case 'List':
-      checkRequired(['children']);
+    case "Row":
+    case "Column":
+    case "List":
+      checkRequired(["children"]);
       if (properties.children) {
         const hasExplicit = !!properties.children.explicitList;
         const hasTemplate = !!properties.children.template;
         if ((hasExplicit && hasTemplate) || (!hasExplicit && !hasTemplate)) {
           errors.push(
-            `Component '${component.id}' must have either 'explicitList' or 'template' in children, but not both or neither.`
+            `Component '${component.id}' must have either 'explicitList' or 'template' in children, but not both or neither.`,
           );
         }
         if (hasExplicit) {
@@ -186,41 +192,41 @@ function validateComponent(
         }
       }
       break;
-    case 'Card':
-      checkRequired(['child']);
+    case "Card":
+      checkRequired(["child"]);
       checkRefs([properties.child]);
       break;
-    case 'Tabs':
-      checkRequired(['tabItems']);
+    case "Tabs":
+      checkRequired(["tabItems"]);
       if (properties.tabItems && Array.isArray(properties.tabItems)) {
         properties.tabItems.forEach((tab: any) => {
           if (!tab.title) {
             errors.push(
-              `Tab item in component '${component.id}' is missing a 'title'.`
+              `Tab item in component '${component.id}' is missing a 'title'.`,
             );
           }
           if (!tab.child) {
             errors.push(
-              `Tab item in component '${component.id}' is missing a 'child'.`
+              `Tab item in component '${component.id}' is missing a 'child'.`,
             );
           }
           checkRefs([tab.child]);
         });
       }
       break;
-    case 'Modal':
-      checkRequired(['entryPointChild', 'contentChild']);
+    case "Modal":
+      checkRequired(["entryPointChild", "contentChild"]);
       checkRefs([properties.entryPointChild, properties.contentChild]);
       break;
-    case 'Button':
-      checkRequired(['label', 'action']);
+    case "Button":
+      checkRequired(["label", "action"]);
       break;
-    case 'Divider':
+    case "Divider":
       // No required properties
       break;
     default:
       errors.push(
-        `Unknown component type '${componentType}' in component '${component.id}'.`
+        `Unknown component type '${componentType}' in component '${component.id}'.`,
       );
   }
 }
