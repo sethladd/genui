@@ -4,8 +4,10 @@
 
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
+
+import '../model/tools.dart';
 import '../primitives/simple_items.dart';
-import 'a2ui_message.dart';
 
 /// A callback that is called when events are sent.
 typedef SendEventsCallback =
@@ -20,7 +22,7 @@ typedef DispatchEventCallback = void Function(UiEvent event);
 /// actions, such as tapping a button or entering text.
 extension type UiEvent.fromMap(JsonMap _json) {
   /// The ID of the surface that this event originated from.
-  String get surfaceId => _json['surfaceId'] as String;
+  String get surfaceId => _json[surfaceIdKey] as String;
 
   /// The ID of the widget that triggered the event.
   String get widgetId => _json['widgetId'] as String;
@@ -59,7 +61,7 @@ extension type UserActionEvent.fromMap(JsonMap _json) implements UiEvent {
     DateTime? timestamp,
     JsonMap? context,
   }) : _json = {
-         if (surfaceId != null) 'surfaceId': surfaceId,
+         if (surfaceId != null) surfaceIdKey: surfaceId,
          'name': name,
          'sourceComponentId': sourceComponentId,
          'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
@@ -113,7 +115,7 @@ class UiDefinition {
   /// Converts this object to a JSON map.
   JsonMap toJson() {
     return {
-      'surfaceId': surfaceId,
+      surfaceIdKey: surfaceId,
       'rootComponentId': rootComponentId,
       'components': components.map(
         (key, value) => MapEntry(key, value.toJson()),
@@ -126,4 +128,45 @@ class UiDefinition {
     final text = jsonEncode(this);
     return 'A user interface is shown with the following content:\n$text.';
   }
+}
+
+/// A component in the UI.
+final class Component {
+  /// Creates a [Component].
+  const Component({required this.id, required this.componentProperties});
+
+  /// Creates a [Component] from a JSON map.
+  factory Component.fromJson(JsonMap json) {
+    return Component(
+      id: json['id'] as String,
+      componentProperties: json['component'] as JsonMap,
+    );
+  }
+
+  /// The unique ID of the component.
+  final String id;
+
+  /// The properties of the component.
+  final JsonMap componentProperties;
+
+  /// Converts this object to a JSON map.
+  JsonMap toJson() {
+    return {'id': id, 'component': componentProperties};
+  }
+
+  /// The type of the component.
+  String get type => componentProperties.keys.first;
+
+  @override
+  bool operator ==(Object other) =>
+      other is Component &&
+      id == other.id &&
+      const DeepCollectionEquality().equals(
+        componentProperties,
+        other.componentProperties,
+      );
+
+  @override
+  int get hashCode =>
+      Object.hash(id, const DeepCollectionEquality().hash(componentProperties));
 }

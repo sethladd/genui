@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'package:collection/collection.dart';
+import 'package:json_schema_builder/json_schema_builder.dart';
 
 import '../primitives/simple_items.dart';
+import 'a2ui_schemas.dart';
+import 'catalog.dart';
+import 'tools.dart';
+import 'ui_models.dart';
 
 /// A sealed class representing a message in the A2UI stream.
 sealed class A2uiMessage {
@@ -27,6 +31,21 @@ sealed class A2uiMessage {
     }
     throw ArgumentError('Unknown A2UI message type: $json');
   }
+
+  /// Returns the JSON schema for an A2UI message.
+  static Schema a2uiMessageSchema(Catalog catalog) {
+    return S.object(
+      title: 'A2UI Message Schema',
+      description:
+          """Describes a JSON payload for an A2UI (Agent to UI) message, which is used to dynamically construct and update user interfaces. A message MUST contain exactly ONE of the action properties: 'beginRendering', 'surfaceUpdate', 'dataModelUpdate', or 'deleteSurface'.""",
+      properties: {
+        'surfaceUpdate': A2uiSchemas.surfaceUpdateSchema(catalog),
+        'dataModelUpdate': A2uiSchemas.dataModelUpdateSchema(),
+        'beginRendering': A2uiSchemas.beginRenderingSchema(),
+        'deleteSurface': A2uiSchemas.surfaceDeletionSchema(),
+      },
+    );
+  }
 }
 
 /// An A2UI message that updates a surface with new components.
@@ -37,7 +56,7 @@ final class SurfaceUpdate extends A2uiMessage {
   /// Creates a [SurfaceUpdate] message from a JSON map.
   factory SurfaceUpdate.fromJson(JsonMap json) {
     return SurfaceUpdate(
-      surfaceId: json['surfaceId'] as String,
+      surfaceId: json[surfaceIdKey] as String,
       components: (json['components'] as List<Object?>)
           .map((e) => Component.fromJson(e as JsonMap))
           .toList(),
@@ -63,7 +82,7 @@ final class DataModelUpdate extends A2uiMessage {
   /// Creates a [DataModelUpdate] message from a JSON map.
   factory DataModelUpdate.fromJson(JsonMap json) {
     return DataModelUpdate(
-      surfaceId: json['surfaceId'] as String,
+      surfaceId: json[surfaceIdKey] as String,
       path: json['path'] as String?,
       contents: json['contents'] as Object,
     );
@@ -91,7 +110,7 @@ final class BeginRendering extends A2uiMessage {
   /// Creates a [BeginRendering] message from a JSON map.
   factory BeginRendering.fromJson(JsonMap json) {
     return BeginRendering(
-      surfaceId: json['surfaceId'] as String,
+      surfaceId: json[surfaceIdKey] as String,
       root: json['root'] as String,
       styles: json['styles'] as JsonMap?,
     );
@@ -114,50 +133,9 @@ final class SurfaceDeletion extends A2uiMessage {
 
   /// Creates a [SurfaceDeletion] message from a JSON map.
   factory SurfaceDeletion.fromJson(JsonMap json) {
-    return SurfaceDeletion(surfaceId: json['surfaceId'] as String);
+    return SurfaceDeletion(surfaceId: json[surfaceIdKey] as String);
   }
 
   /// The ID of the surface that this message applies to.
   final String surfaceId;
-}
-
-/// A component in the UI.
-final class Component {
-  /// Creates a [Component].
-  const Component({required this.id, required this.componentProperties});
-
-  /// Creates a [Component] from a JSON map.
-  factory Component.fromJson(JsonMap json) {
-    return Component(
-      id: json['id'] as String,
-      componentProperties: json['component'] as JsonMap,
-    );
-  }
-
-  /// The unique ID of the component.
-  final String id;
-
-  /// The properties of the component.
-  final JsonMap componentProperties;
-
-  /// Converts this object to a JSON map.
-  JsonMap toJson() {
-    return {'id': id, 'component': componentProperties};
-  }
-
-  /// The type of the component.
-  String get type => componentProperties.keys.first;
-
-  @override
-  bool operator ==(Object other) =>
-      other is Component &&
-      id == other.id &&
-      const DeepCollectionEquality().equals(
-        componentProperties,
-        other.componentProperties,
-      );
-
-  @override
-  int get hashCode =>
-      Object.hash(id, const DeepCollectionEquality().hash(componentProperties));
 }
