@@ -5,7 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_genui/flutter_genui.dart';
 
-import 'protocol/protocol.dart';
+import 'backend.dart';
 
 void main() {
   runApp(const MyApp());
@@ -60,13 +60,28 @@ class _IntegrationTester extends StatefulWidget {
   State<_IntegrationTester> createState() => _IntegrationTesterState();
 }
 
+final _catalog = CoreCatalogItems.asCatalog();
+const _toolName = 'uiGenerationTool';
+final uiSchema = UiSchemaDefinition(
+  prompt: genUiTechPrompt([_toolName]),
+  tools: [
+    catalogToFunctionDeclaration(
+      _catalog,
+      _toolName,
+      'Generates Flutter UI based on user requests.',
+    ),
+  ],
+);
+
 class _IntegrationTesterState extends State<_IntegrationTester> {
   final _controller = TextEditingController(text: requestText);
-  final _protocol = Protocol();
-  late final GenUiManager _genUi = GenUiManager(catalog: _protocol.catalog);
+
+  final _protocol = Backend(uiSchema);
+  late final GenUiManager _genUi = GenUiManager(catalog: _catalog);
   String? _selectedResponse;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _surfaceId;
 
   @override
   Widget build(BuildContext context) {
@@ -87,21 +102,22 @@ class _IntegrationTesterState extends State<_IntegrationTester> {
                 'Sending request for _selectedResponse = '
                 '$_selectedResponse ...',
               );
-              final messages = await _protocol.sendRequest(
+              final parsedToolCall = await _protocol.sendRequest(
                 _controller.text,
                 savedResponse: _selectedResponse,
               );
-              if (messages == null) {
+              if (parsedToolCall == null) {
                 print('No UI received.');
                 setState(() {
                   _isLoading = false;
                 });
                 return;
               }
-              for (final message in messages) {
+              _surfaceId = parsedToolCall.surfaceId;
+              for (final message in parsedToolCall.messages) {
                 _genUi.handleMessage(message);
               }
-              print('UI received for surfaceId=$kSurfaceId');
+              print('UI received for surfaceId=${parsedToolCall.surfaceId}');
               setState(() => _isLoading = false);
             } catch (e, callStack) {
               print('Error connecting to backend: $e\n$callStack');
@@ -134,7 +150,15 @@ class _IntegrationTesterState extends State<_IntegrationTester> {
     if (_errorMessage != null) {
       return Text('$_errorMessage');
     }
-    return GenUiSurface(surfaceId: kSurfaceId, host: _genUi);
+    final surfaceId = _surfaceId;
+    if (surfaceId == null) {
+      return const Text('_surfaceId == null');
+    }
+    return GenUiSurface(
+      surfaceId: surfaceId,
+      host: _genUi,
+      defaultBuilder: (_) => const Text('Fallback to defaultBuilder'),
+    );
   }
 }
 

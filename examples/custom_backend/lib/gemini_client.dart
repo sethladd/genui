@@ -11,18 +11,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_genui/flutter_genui.dart';
 import 'package:http/http.dart' as http;
 
-import '../debug_utils.dart';
-import 'model.dart';
+import 'debug_utils.dart';
 
 // mode='ANY':
 // The model is constrained to always predict a function call and
 // guarantees function schema adherence.
 // https://ai.google.dev/gemini-api/docs/function-calling?example=meeting#rest_2
 
-abstract class Backend {
-  static Future<ToolCall?> sendRequest(
-    List<FunctionDeclaration> tools,
-    String request, {
+abstract class GeminiClient {
+  static Future<ToolCall?> sendRequest({
+    required List<GenUiFunctionDeclaration> tools,
+    required String request,
     required String? savedResponse,
   }) async {
     late final String? rawResponse;
@@ -48,7 +47,7 @@ abstract class Backend {
       await rootBundle.loadString(savedResponse);
 
   static Future<String?> _getRawResponseFromApi(
-    List<FunctionDeclaration> tools,
+    List<GenUiFunctionDeclaration> tools,
     String request,
   ) async {
     debugSaveToFileObject('tools', tools);
