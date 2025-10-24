@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:firebase_ai/firebase_ai.dart';
+import 'package:firebase_ai/firebase_ai.dart' hide TextPart;
+// ignore: implementation_imports
+import 'package:firebase_ai/src/api.dart' show ModalityTokenCount;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_genui/flutter_genui.dart';
 import 'package:json_schema_builder/json_schema_builder.dart' as dsb;
@@ -18,59 +21,38 @@ import 'gemini_schema_adapter.dart';
 /// This is used to allow for custom model creation, for example, for testing.
 typedef GenerativeModelFactory =
     GeminiGenerativeModelInterface Function({
-      required FirebaseAiClient configuration,
+      required FirebaseAiContentGenerator configuration,
       Content? systemInstruction,
       List<Tool>? tools,
       ToolConfig? toolConfig,
     });
 
-/// A basic implementation of [AiClient] for accessing a Gemini model.
-///
-/// This class encapsulates settings for interacting with a generative AI model,
-/// including model selection, API keys, retry mechanisms, and tool
-/// configurations. It provides a [generateContent] method to interact with the
-/// AI model, supporting structured output and tool usage.
-class FirebaseAiClient implements AiClient {
-  /// Creates an [FirebaseAiClient] instance with specified configurations.
-  ///
-  /// - [tools]: A list of default [AiTool]s available to the AI.
-  /// - [outputToolName]: The name of the internal tool used to force structured
-  ///   output from the AI.
-  FirebaseAiClient({
+/// A [ContentGenerator] that uses the Firebase AI API to generate content.
+class FirebaseAiContentGenerator implements ContentGenerator {
+  /// Creates a [FirebaseAiContentGenerator] instance with specified
+  /// configurations.
+  FirebaseAiContentGenerator({
+    required this.catalog,
     this.systemInstruction,
-    this.tools = const <AiTool>[],
     this.outputToolName = 'provideFinalOutput',
     this.modelCreator = defaultGenerativeModelFactory,
-  }) {
-    final duplicateToolNames = tools.map((t) => t.name).toSet();
-    if (duplicateToolNames.length != tools.length) {
-      final duplicateTools = tools.where((t) {
-        return tools.where((other) => other.name == t.name).length > 1;
-      });
-      throw AiClientException(
-        'Duplicate tool(s) '
-        '${duplicateTools.map<String>((t) => t.name).toSet().join(', ')} '
-        'registered. Tool names must be unique.',
-      );
-    }
-  }
+    this.configuration = const GenUiConfiguration(),
+    this.additionalTools = const [],
+  });
+
+  final GenUiConfiguration configuration;
+
+  /// The catalog of UI components available to the AI.
+  final Catalog catalog;
 
   /// The system instruction to use for the AI model.
   final String? systemInstruction;
-
-  /// The list of tools to configure by default for this AI instance.
-  ///
-  /// These [AiTool]s are made available to the AI during every
-  /// [generateContent] call, in addition to any tools passed directly to that
-  /// method.
-  final List<AiTool> tools;
 
   /// The name of an internal pseudo-tool used to retrieve the final structured
   /// output from the AI.
   ///
   /// This only needs to be provided in case of name collision with another
-  /// tool. It is used internally to fetch the final output to return from the
-  /// [generateContent] method.
+  /// tool.
   ///
   /// Defaults to 'provideFinalOutput'.
   final String outputToolName;
@@ -81,11 +63,14 @@ class FirebaseAiClient implements AiClient {
   /// [GeminiGenerativeModelInterface] used for AI interactions. It allows for
   /// customization of the model setup, such as using different HTTP clients, or
   /// for providing mock models during testing. The factory receives this
-  /// [FirebaseAiClient] instance as configuration.
+  /// [FirebaseAiContentGenerator] instance as configuration.
   ///
   /// Defaults to a wrapper for the regular [GenerativeModel] constructor,
   /// [defaultGenerativeModelFactory].
   final GenerativeModelFactory modelCreator;
+
+  /// Additional tools to make available to the AI model.
+  final List<AiTool> additionalTools;
 
   /// The total number of input tokens used by this client.
   int inputTokenUsage = 0;
@@ -93,57 +78,50 @@ class FirebaseAiClient implements AiClient {
   /// The total number of output tokens used by this client
   int outputTokenUsage = 0;
 
+  final _a2uiMessageController = StreamController<A2uiMessage>.broadcast();
+  final _textResponseController = StreamController<String>.broadcast();
+  final _errorController = StreamController<ContentGeneratorError>.broadcast();
+  final _isProcessing = ValueNotifier<bool>(false);
+
   @override
-  ValueListenable<int> get activeRequests => _activeRequests;
-  final ValueNotifier<int> _activeRequests = ValueNotifier(0);
+  Stream<A2uiMessage> get a2uiMessageStream => _a2uiMessageController.stream;
+
+  @override
+  Stream<String> get textResponseStream => _textResponseController.stream;
+
+  @override
+  Stream<ContentGeneratorError> get errorStream => _errorController.stream;
+
+  @override
+  ValueListenable<bool> get isProcessing => _isProcessing;
 
   @override
   void dispose() {
-    _activeRequests.dispose();
+    _a2uiMessageController.close();
+    _textResponseController.close();
+    _errorController.close();
+    _isProcessing.dispose();
   }
 
   @override
-  Future<T?> generateContent<T extends Object>(
-    Iterable<ChatMessage> conversation,
-    dsb.Schema outputSchema, {
-    Iterable<AiTool> additionalTools = const [],
-  }) async {
-    _activeRequests.value++;
+  Future<void> sendRequest(Iterable<ChatMessage> messages) async {
+    _isProcessing.value = true;
     try {
-      return await _generate(
-            messages: conversation,
-            outputSchema: outputSchema,
-            availableTools: [...tools, ...additionalTools],
-          )
-          as T?;
+      await _generate(messages: messages);
+    } catch (e, st) {
+      genUiLogger.severe('Error generating content', e, st);
+      _errorController.add(ContentGeneratorError(e, st));
     } finally {
-      _activeRequests.value--;
-    }
-  }
-
-  @override
-  Future<String> generateText(
-    Iterable<ChatMessage> conversation, {
-    Iterable<AiTool> additionalTools = const [],
-  }) async {
-    _activeRequests.value++;
-    try {
-      return await _generate(
-            messages: conversation,
-            availableTools: [...tools, ...additionalTools],
-          )
-          as String;
-    } finally {
-      _activeRequests.value--;
+      _isProcessing.value = false;
     }
   }
 
   /// The default factory function for creating a [GenerativeModel].
   ///
   /// This function instantiates a standard [GenerativeModel] using the `model`
-  /// from the provided [FirebaseAiClient] `configuration`.
+  /// from the provided [FirebaseAiContentGenerator] `configuration`.
   static GeminiGenerativeModelInterface defaultGenerativeModelFactory({
-    required FirebaseAiClient configuration,
+    required FirebaseAiContentGenerator configuration,
     Content? systemInstruction,
     List<Tool>? tools,
     ToolConfig? toolConfig,
@@ -193,14 +171,12 @@ class FirebaseAiClient implements AiClient {
     final toolFullNames = <String>{};
     for (final tool in allTools) {
       if (uniqueAiToolsByName.containsKey(tool.name)) {
-        throw AiClientException('Duplicate tool ${tool.name} registered.');
+        throw Exception('Duplicate tool ${tool.name} registered.');
       }
       uniqueAiToolsByName[tool.name] = tool;
       if (tool.name != tool.fullName) {
         if (toolFullNames.contains(tool.fullName)) {
-          throw AiClientException(
-            'Duplicate tool ${tool.fullName} registered.',
-          );
+          throw Exception('Duplicate tool ${tool.fullName} registered.');
         }
         toolFullNames.add(tool.fullName);
       }
@@ -245,6 +221,13 @@ class FirebaseAiClient implements AiClient {
     final generativeAiTools = functionDeclarations.isNotEmpty
         ? [Tool.functionDeclarations(functionDeclarations)]
         : null;
+
+    if (generativeAiTools != null) {
+      genUiLogger.finest(
+        'Tool declarations being sent to the model: '
+        '${jsonEncode(generativeAiTools)}',
+      );
+    }
 
     final allowedFunctionNames = <String>{
       ...uniqueAiToolsByName.keys,
@@ -300,15 +283,14 @@ class FirebaseAiClient implements AiClient {
 
       final aiTool = availableTools.firstWhere(
         (t) => t.name == call.name || t.fullName == call.name,
-        orElse: () =>
-            throw AiClientException('Unknown tool ${call.name} called.'),
+        orElse: () => throw Exception('Unknown tool ${call.name} called.'),
       );
       Map<String, Object?> toolResult;
       try {
         genUiLogger.fine('Invoking tool: ${aiTool.name}');
         toolResult = await aiTool.invoke(call.args);
         genUiLogger.info(
-          'Invoked tool ${aiTool.name} with args ${call.args}. ',
+          'Invoked tool ${aiTool.name} with args ${call.args}. '
           'Result: $toolResult',
         );
       } catch (exception, stack) {
@@ -335,12 +317,26 @@ class FirebaseAiClient implements AiClient {
 
   Future<Object?> _generate({
     required Iterable<ChatMessage> messages,
-    required List<AiTool> availableTools,
     dsb.Schema? outputSchema,
   }) async {
     final isForcedToolCalling = outputSchema != null;
     final converter = GeminiContentConverter();
     final adapter = GeminiSchemaAdapter();
+
+    final availableTools = [
+      if (configuration.actions.allowCreate ||
+          configuration.actions.allowUpdate) ...[
+        SurfaceUpdateTool(
+          handleMessage: _a2uiMessageController.add,
+          catalog: catalog,
+          configuration: configuration,
+        ),
+        BeginRenderingTool(handleMessage: _a2uiMessageController.add),
+      ],
+      if (configuration.actions.allowDelete)
+        DeleteSurfaceTool(handleMessage: _a2uiMessageController.add),
+      ...additionalTools,
+    ];
 
     // A local copy of the incoming messages which is updated with tool results
     // as they are generated.
@@ -391,7 +387,17 @@ With functions:
   ''',
       );
       final inferenceStartTime = DateTime.now();
-      final response = await model.generateContent(mutableContent);
+      GenerateContentResponse response;
+      try {
+        response = await model.generateContent(mutableContent);
+        genUiLogger.finest(
+          'Raw model response: ${_responseToString(response)}',
+        );
+      } catch (e, st) {
+        genUiLogger.severe('Error from model.generateContent', e, st);
+        _errorController.add(ContentGeneratorError(e, st));
+        rethrow;
+      }
       final elapsed = DateTime.now().difference(inferenceStartTime);
 
       if (response.usageMetadata != null) {
@@ -439,6 +445,7 @@ With functions:
           final text = candidate.text ?? '';
           mutableContent.add(candidate.content);
           genUiLogger.fine('Returning text response: "$text"');
+          _textResponseController.add(text);
           return text;
         }
       }
@@ -468,6 +475,19 @@ With functions:
           'parts to conversation.',
         );
       }
+
+      // If the model returned a text response, we assume it's the final
+      // response and we should stop the tool calling loop.
+      if (!isForcedToolCalling &&
+          candidate.text != null &&
+          candidate.text!.trim().isNotEmpty) {
+        genUiLogger.fine(
+          'Model returned a text response of "${candidate.text!.trim()}". '
+          'Exiting tool loop.',
+        );
+        _textResponseController.add(candidate.text!);
+        return candidate.text;
+      }
     }
 
     if (isForcedToolCalling) {
@@ -489,4 +509,84 @@ With functions:
       return '';
     }
   }
+}
+
+String _usageMetadata(UsageMetadata? metadata) {
+  if (metadata == null) return '';
+  final buffer = StringBuffer();
+  buffer.writeln('UsageMetadata(');
+  buffer.writeln('  promptTokenCount: ${metadata.promptTokenCount},');
+  buffer.writeln('  candidatesTokenCount: ${metadata.candidatesTokenCount},');
+  buffer.writeln('  totalTokenCount: ${metadata.totalTokenCount},');
+  buffer.writeln('  thoughtsTokenCount: ${metadata.thoughtsTokenCount},');
+  buffer.writeln(
+    '  toolUsePromptTokenCount: ${metadata.toolUsePromptTokenCount},',
+  );
+  buffer.writeln('  promptTokensDetails: [');
+  for (final detail in metadata.promptTokensDetails ?? <ModalityTokenCount>[]) {
+    buffer.writeln('    ModalityTokenCount(');
+    buffer.writeln('      modality: ${detail.modality},');
+    buffer.writeln('      tokenCount: ${detail.tokenCount},');
+    buffer.writeln('    ),');
+  }
+  buffer.writeln('  ],');
+  buffer.writeln('  candidatesTokensDetails: [');
+  for (final detail
+      in metadata.candidatesTokensDetails ?? <ModalityTokenCount>[]) {
+    buffer.writeln('    ModalityTokenCount(');
+    buffer.writeln('      ${detail.modality},');
+    buffer.writeln('      ${detail.tokenCount},');
+    buffer.writeln('    ),');
+  }
+  buffer.writeln('  ],');
+  buffer.writeln('  toolUsePromptTokensDetails: [');
+  for (final detail
+      in metadata.toolUsePromptTokensDetails ?? <ModalityTokenCount>[]) {
+    buffer.writeln('    ModalityTokenCount(');
+    buffer.writeln('      ${detail.modality},');
+    buffer.writeln('      ${detail.tokenCount},');
+    buffer.writeln('    ),');
+  }
+  buffer.writeln('  ],');
+  buffer.writeln(')');
+  return buffer.toString();
+}
+
+String _responseToString(GenerateContentResponse response) {
+  final buffer = StringBuffer();
+  buffer.writeln('GenerateContentResponse(');
+  buffer.writeln('  usageMetadata: ${_usageMetadata(response.usageMetadata)},');
+  buffer.writeln('  promptFeedback: ${response.promptFeedback},');
+  buffer.writeln('  candidates: [');
+  for (final candidate in response.candidates) {
+    buffer.writeln('    Candidate(');
+    buffer.writeln('      finishReason: ${candidate.finishReason},');
+    buffer.writeln('      finishMessage: "${candidate.finishMessage}",');
+    buffer.writeln('      content: Content(');
+    buffer.writeln('        role: "${candidate.content.role}",');
+    buffer.writeln('        parts: [');
+    for (final part in candidate.content.parts) {
+      if (part is TextPart) {
+        buffer.writeln(
+          '          TextPart(text: "${(part as TextPart).text}"),',
+        );
+      } else if (part is FunctionCall) {
+        buffer.writeln('          FunctionCall(');
+        buffer.writeln('            name: "${part.name}",');
+        final indentedLines = (const JsonEncoder.withIndent('  ').convert(
+          part.args,
+        )).split('\n').map<String>((line) => '            $line');
+        buffer.writeln('            args: $indentedLines,');
+        buffer.writeln('          ),');
+      } else {
+        buffer.writeln('          Unknown Part: ${part.runtimeType},');
+      }
+    }
+    buffer.writeln('        ],');
+    buffer.writeln('      ),');
+    buffer.writeln('    ),');
+  }
+  buffer.writeln('  ],');
+  buffer.writeln(')');
+  return buffer.toString();
 }
