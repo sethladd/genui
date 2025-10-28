@@ -8,7 +8,8 @@ on:
 jobs:
   check-sla:
     # Run this job only when the 'status: triaged' label is added
-    if: ${{ github.event.label.name == 'status: triaged' }}
+    if: | 
+      (github.event.label.name == 'status: triaged')
     runs-on: ubuntu-latest
     permissions:
       # Need write privileges to add labels
@@ -17,7 +18,7 @@ jobs:
     steps:
       - name: Check time since issue was created
         # github actions script version 7.1
-        uses: actions/github-script@vf28e40c7f34bde8b3046d885e986cb6290c5673b
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
         with:
           retries: 3
           script: |
