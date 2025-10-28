@@ -150,7 +150,7 @@ void main() {
     test('can handle UI event', () async {
       manager
           .dataModelForSurface('testSurface')
-          .update('/myValue', 'testValue');
+          .update(DataPath('/myValue'), 'testValue');
       final future = manager.onSubmit.first;
       final now = DateTime.now();
       final event = UserActionEvent(
@@ -162,12 +162,14 @@ void main() {
       );
       manager.handleUiEvent(event);
       final message = await future;
-      expect(message, isA<UserMessage>());
+      expect(message, isA<UserUiInteractionMessage>());
       final expectedJson = jsonEncode({
         'userAction': {
+          'surfaceId': 'testSurface',
           'name': 'testAction',
           'sourceComponentId': 'testWidget',
           'timestamp': now.toIso8601String(),
+          'isAction': true,
           'context': {'key': 'value'},
         },
       });
