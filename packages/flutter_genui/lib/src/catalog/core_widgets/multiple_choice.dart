@@ -68,11 +68,11 @@ final multipleChoice = CatalogItem(
         required dataContext,
       }) {
         final multipleChoiceData = _MultipleChoiceData.fromMap(data as JsonMap);
-        final selectionsNotifier = dataContext.subscribeToStringArray(
+        final selectionsNotifier = dataContext.subscribeToObjectArray(
           multipleChoiceData.selections,
         );
 
-        return ValueListenableBuilder<List<dynamic>?>(
+        return ValueListenableBuilder<List<Object?>?>(
           valueListenable: selectionsNotifier,
           builder: (context, selections, child) {
             return Column(
