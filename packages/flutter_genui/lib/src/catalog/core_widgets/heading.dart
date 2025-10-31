@@ -47,6 +47,7 @@ final heading = CatalogItem(
         required dispatchEvent,
         required context,
         required dataContext,
+        required getComponent,
       }) {
         final headingData = _HeadingData.fromMap(data as JsonMap);
         final notifier = dataContext.subscribeToString(headingData.text);

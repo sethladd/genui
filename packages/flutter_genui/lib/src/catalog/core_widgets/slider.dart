@@ -58,6 +58,7 @@ final slider = CatalogItem(
         required dispatchEvent,
         required context,
         required dataContext,
+        required getComponent,
       }) {
         final sliderData = _SliderData.fromMap(data as JsonMap);
         final valueNotifier = dataContext.subscribeToValue<num>(

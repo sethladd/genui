@@ -60,6 +60,7 @@ final text = CatalogItem(
         required dispatchEvent,
         required context,
         required dataContext,
+        required getComponent,
       }) {
         final textData = _TextData.fromMap(data as JsonMap);
         final notifier = dataContext.subscribeToString(textData.text);

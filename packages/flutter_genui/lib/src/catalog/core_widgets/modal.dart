@@ -58,6 +58,7 @@ final modal = CatalogItem(
         required dispatchEvent,
         required context,
         required dataContext,
+        required getComponent,
       }) {
         final modalData = _ModalData.fromMap(data as JsonMap);
         return buildChild(modalData.entryPointChild);

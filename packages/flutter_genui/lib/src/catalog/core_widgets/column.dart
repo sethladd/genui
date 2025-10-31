@@ -113,23 +113,36 @@ final column = CatalogItem(
         required dispatchEvent,
         required context,
         required dataContext,
+        required getComponent,
       }) {
         final columnData = _ColumnData.fromMap(data as JsonMap);
         return ComponentChildrenBuilder(
           childrenData: columnData.children,
           dataContext: dataContext,
           buildChild: buildChild,
-          explicitListBuilder: (children) {
-            return Column(
-              mainAxisAlignment: _parseMainAxisAlignment(
-                columnData.distribution,
-              ),
-              crossAxisAlignment: _parseCrossAxisAlignment(
-                columnData.alignment,
-              ),
-              children: children,
-            );
-          },
+          getComponent: getComponent,
+          explicitListBuilder:
+              (childIds, buildChild, getComponent, dataContext) {
+                return Column(
+                  mainAxisAlignment: _parseMainAxisAlignment(
+                    columnData.distribution,
+                  ),
+                  crossAxisAlignment: _parseCrossAxisAlignment(
+                    columnData.alignment,
+                  ),
+                  mainAxisSize: MainAxisSize.min,
+                  children: childIds
+                      .map(
+                        (componentId) => buildWeightedChild(
+                          componentId: componentId,
+                          dataContext: dataContext,
+                          buildChild: buildChild,
+                          component: getComponent(componentId),
+                        ),
+                      )
+                      .toList(),
+                );
+              },
           templateListWidgetBuilder: (context, list, componentId, dataBinding) {
             return Column(
               mainAxisAlignment: _parseMainAxisAlignment(
@@ -138,12 +151,18 @@ final column = CatalogItem(
               crossAxisAlignment: _parseCrossAxisAlignment(
                 columnData.alignment,
               ),
+              mainAxisSize: MainAxisSize.min,
               children: [
-                for (var i = 0; i < list.length; i++)
-                  buildChild(
-                    componentId,
-                    dataContext.nested(DataPath('$dataBinding[$i]')),
+                for (var i = 0; i < list.length; i++) ...[
+                  buildWeightedChild(
+                    componentId: componentId,
+                    dataContext: dataContext.nested(
+                      DataPath('$dataBinding/$i'),
+                    ),
+                    buildChild: buildChild,
+                    component: getComponent(componentId),
                   ),
+                ],
               ],
             );
           },

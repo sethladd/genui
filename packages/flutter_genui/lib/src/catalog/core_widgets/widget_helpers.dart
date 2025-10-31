@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../model/catalog_item.dart';
 import '../../model/data_model.dart';
+import '../../model/ui_models.dart';
 import '../../primitives/logging.dart';
 import '../../primitives/simple_items.dart';
 
@@ -22,11 +23,17 @@ typedef TemplateListWidgetBuilder =
     );
 
 /// Builder function for creating a parent widget given a list of pre-built
-/// [children].
+/// [childIds].
 ///
 /// This is used by [ComponentChildrenBuilder] when children are defined as an
 /// explicit list of component IDs.
-typedef ExplicitListWidgetBuilder = Widget Function(List<Widget> children);
+typedef ExplicitListWidgetBuilder =
+    Widget Function(
+      List<String> childIds,
+      ChildBuilderCallback buildChild,
+      GetComponentCallback getComponent,
+      DataContext dataContext,
+    );
 
 /// A helper widget to build widgets from component data that contains a list
 /// of children.
@@ -45,6 +52,7 @@ class ComponentChildrenBuilder extends StatelessWidget {
     required this.childrenData,
     required this.dataContext,
     required this.buildChild,
+    required this.getComponent,
     required this.explicitListBuilder,
     required this.templateListWidgetBuilder,
     super.key,
@@ -58,6 +66,9 @@ class ComponentChildrenBuilder extends StatelessWidget {
 
   /// The callback to build a child widget.
   final ChildBuilderCallback buildChild;
+
+  /// The callback to get a component's data by ID.
+  final GetComponentCallback getComponent;
 
   /// The builder for an explicit list of children.
   final ExplicitListWidgetBuilder explicitListBuilder;
@@ -74,7 +85,10 @@ class ComponentChildrenBuilder extends StatelessWidget {
 
     if (explicitList != null) {
       return explicitListBuilder(
-        explicitList.map((String id) => buildChild(id, dataContext)).toList(),
+        explicitList,
+        buildChild,
+        getComponent,
+        dataContext,
       );
     }
 
@@ -112,4 +126,20 @@ class ComponentChildrenBuilder extends StatelessWidget {
     }
     return const SizedBox.shrink();
   }
+}
+
+/// Builds a child widget, wrapping it in a [Flexible] if a weight is provided
+/// in the component.
+Widget buildWeightedChild({
+  required String componentId,
+  required DataContext dataContext,
+  required ChildBuilderCallback buildChild,
+  required Component? component,
+}) {
+  final weight = component?.weight;
+  final childWidget = buildChild(componentId, dataContext);
+  if (weight != null) {
+    return Flexible(flex: weight, child: childWidget);
+  }
+  return childWidget;
 }

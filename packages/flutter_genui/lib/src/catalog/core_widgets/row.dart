@@ -113,29 +113,52 @@ final row = CatalogItem(
         required dispatchEvent,
         required context,
         required dataContext,
+        required getComponent,
       }) {
         final rowData = _RowData.fromMap(data as JsonMap);
         return ComponentChildrenBuilder(
           childrenData: rowData.children,
           dataContext: dataContext,
           buildChild: buildChild,
-          explicitListBuilder: (children) {
-            return Row(
-              mainAxisAlignment: _parseMainAxisAlignment(rowData.distribution),
-              crossAxisAlignment: _parseCrossAxisAlignment(rowData.alignment),
-              children: children,
-            );
-          },
+          getComponent: getComponent,
+          explicitListBuilder:
+              (childIds, buildChild, getComponent, dataContext) {
+                return Row(
+                  mainAxisAlignment: _parseMainAxisAlignment(
+                    rowData.distribution,
+                  ),
+                  crossAxisAlignment: _parseCrossAxisAlignment(
+                    rowData.alignment,
+                  ),
+                  mainAxisSize: MainAxisSize.min,
+                  children: childIds
+                      .map(
+                        (componentId) => buildWeightedChild(
+                          componentId: componentId,
+                          dataContext: dataContext,
+                          buildChild: buildChild,
+                          component: getComponent(componentId),
+                        ),
+                      )
+                      .toList(),
+                );
+              },
           templateListWidgetBuilder: (context, list, componentId, dataBinding) {
             return Row(
               mainAxisAlignment: _parseMainAxisAlignment(rowData.distribution),
               crossAxisAlignment: _parseCrossAxisAlignment(rowData.alignment),
+              mainAxisSize: MainAxisSize.min,
               children: [
-                for (var i = 0; i < list.length; i++)
-                  buildChild(
-                    componentId,
-                    dataContext.nested(DataPath('$dataBinding[$i]')),
+                for (var i = 0; i < list.length; i++) ...[
+                  buildWeightedChild(
+                    componentId: componentId,
+                    dataContext: dataContext.nested(
+                      DataPath('$dataBinding/$i'),
+                    ),
+                    buildChild: buildChild,
+                    component: getComponent(componentId),
                   ),
+                ],
               ],
             );
           },
