@@ -70,6 +70,7 @@ class Catalog {
     required BuildContext context,
     required DataContext dataContext,
     required GetComponentCallback getComponent,
+    required String surfaceId,
   }) {
     final widgetType = widgetData.keys.firstOrNull;
     final item = items.firstWhereOrNull((item) => item.name == widgetType);
@@ -80,14 +81,17 @@ class Catalog {
 
     genUiLogger.info('Building widget ${item.name} with id $id');
     return item.widgetBuilder(
-      data: JsonMap.from(widgetData[widgetType]! as Map),
-      id: id,
-      buildChild: (String childId, [DataContext? childDataContext]) =>
-          buildChild(childId, childDataContext ?? dataContext),
-      dispatchEvent: dispatchEvent,
-      context: context,
-      dataContext: dataContext,
-      getComponent: getComponent,
+      CatalogItemContext(
+        data: JsonMap.from(widgetData[widgetType]! as Map),
+        id: id,
+        buildChild: (String childId, [DataContext? childDataContext]) =>
+            buildChild(childId, childDataContext ?? dataContext),
+        dispatchEvent: dispatchEvent,
+        buildContext: context,
+        dataContext: dataContext,
+        getComponent: getComponent,
+        surfaceId: surfaceId,
+      ),
     );
   }
 
