@@ -39,14 +39,16 @@ extension type _HeadingData.fromMap(JsonMap _json) {
 final heading = CatalogItem(
   name: 'Heading',
   dataSchema: _schema,
-  widgetBuilder: (context) {
-    final headingData = _HeadingData.fromMap(context.data as JsonMap);
-    final notifier = context.dataContext.subscribeToString(headingData.text);
+  widgetBuilder: (itemContext) {
+    final headingData = _HeadingData.fromMap(itemContext.data as JsonMap);
+    final notifier = itemContext.dataContext.subscribeToString(
+      headingData.text,
+    );
 
     return ValueListenableBuilder<String?>(
       valueListenable: notifier,
-      builder: (bcontext, currentValue, child) {
-        final textTheme = Theme.of(bcontext).textTheme;
+      builder: (context, currentValue, child) {
+        final textTheme = Theme.of(context).textTheme;
         final style = switch (headingData.level) {
           '1' => textTheme.headlineLarge,
           '2' => textTheme.headlineMedium,

@@ -60,26 +60,26 @@ extension type _MultipleChoiceData.fromMap(JsonMap _json) {
 final multipleChoice = CatalogItem(
   name: 'MultipleChoice',
   dataSchema: _schema,
-  widgetBuilder: (context) {
+  widgetBuilder: (itemContext) {
     final multipleChoiceData = _MultipleChoiceData.fromMap(
-      context.data as JsonMap,
+      itemContext.data as JsonMap,
     );
-    final selectionsNotifier = context.dataContext.subscribeToObjectArray(
+    final selectionsNotifier = itemContext.dataContext.subscribeToObjectArray(
       multipleChoiceData.selections,
     );
 
     return ValueListenableBuilder<List<Object?>?>(
       valueListenable: selectionsNotifier,
-      builder: (bcontext, selections, child) {
+      builder: (context, selections, child) {
         return Column(
           children: multipleChoiceData.options.map((option) {
-            final labelNotifier = context.dataContext.subscribeToString(
+            final labelNotifier = itemContext.dataContext.subscribeToString(
               option['label'] as JsonMap,
             );
             final value = option['value'] as String;
             return ValueListenableBuilder<String?>(
               valueListenable: labelNotifier,
-              builder: (bcontext, label, child) {
+              builder: (context, label, child) {
                 return CheckboxListTile(
                   title: Text(label ?? ''),
                   value: selections?.contains(value) ?? false,
@@ -95,7 +95,10 @@ final multipleChoice = CatalogItem(
                     } else {
                       newSelections.remove(value);
                     }
-                    context.dataContext.update(DataPath(path), newSelections);
+                    itemContext.dataContext.update(
+                      DataPath(path),
+                      newSelections,
+                    );
                   },
                 );
               },

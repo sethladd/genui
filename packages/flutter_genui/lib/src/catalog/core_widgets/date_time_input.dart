@@ -59,17 +59,17 @@ extension type _DateTimeInputData.fromMap(JsonMap _json) {
 final dateTimeInput = CatalogItem(
   name: 'DateTimeInput',
   dataSchema: _schema,
-  widgetBuilder: (context) {
+  widgetBuilder: (itemContext) {
     final dateTimeInputData = _DateTimeInputData.fromMap(
-      context.data as JsonMap,
+      itemContext.data as JsonMap,
     );
-    final valueNotifier = context.dataContext.subscribeToString(
+    final valueNotifier = itemContext.dataContext.subscribeToString(
       dateTimeInputData.value,
     );
 
     return ValueListenableBuilder<String?>(
       valueListenable: valueNotifier,
-      builder: (bcontext, value, child) {
+      builder: (context, value, child) {
         return ListTile(
           title: Text(value ?? 'Select a date/time'),
           onTap: () async {
@@ -79,13 +79,13 @@ final dateTimeInput = CatalogItem(
             }
             if (dateTimeInputData.enableDate) {
               final date = await showDatePicker(
-                context: context.buildContext,
+                context: itemContext.buildContext,
                 initialDate: DateTime.now(),
                 firstDate: DateTime(2000),
                 lastDate: DateTime(2100),
               );
               if (date != null) {
-                context.dataContext.update(
+                itemContext.dataContext.update(
                   DataPath(path),
                   date.toIso8601String(),
                 );
@@ -93,13 +93,13 @@ final dateTimeInput = CatalogItem(
             }
             if (dateTimeInputData.enableTime) {
               final time = await showTimePicker(
-                context: context.buildContext,
+                context: itemContext.buildContext,
                 initialTime: TimeOfDay.now(),
               );
               if (time != null) {
-                context.dataContext.update(
+                itemContext.dataContext.update(
                   DataPath(path),
-                  time.format(context.buildContext),
+                  time.format(itemContext.buildContext),
                 );
               }
             }
