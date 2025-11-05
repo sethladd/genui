@@ -72,13 +72,18 @@ final button = CatalogItem(
     final colorScheme = Theme.of(itemContext.buildContext).colorScheme;
     final primary = buttonData.primary;
 
+    final textStyle = Theme.of(itemContext.buildContext).textTheme.bodyLarge
+        ?.copyWith(
+          color: primary ? colorScheme.onPrimary : colorScheme.onSurface,
+        );
+
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: primary ? colorScheme.primary : colorScheme.surface,
         foregroundColor: primary
             ? colorScheme.onPrimary
             : colorScheme.onSurface,
-      ),
+      ).copyWith(textStyle: WidgetStatePropertyAll(textStyle)),
       onPressed: () {
         final resolvedContext = resolveContext(
           itemContext.dataContext,
