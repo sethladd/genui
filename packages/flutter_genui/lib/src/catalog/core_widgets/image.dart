@@ -21,17 +21,29 @@ final _schema = S.object(
       description: 'How the image should be inscribed into the box.',
       enumValues: BoxFit.values.map((e) => e.name).toList(),
     ),
+    'hint': S.string(
+      description: 'A hint for the image size and style.',
+      enumValues: [
+        'icon',
+        'avatar',
+        'smallFeature',
+        'mediumFeature',
+        'largeFeature',
+        'header',
+      ],
+    ),
   },
 );
 
 extension type _ImageData.fromMap(JsonMap _json) {
-  factory _ImageData({required JsonMap url, String? fit}) =>
-      _ImageData.fromMap({'url': url, 'fit': fit});
+  factory _ImageData({required JsonMap url, String? fit, String? hint}) =>
+      _ImageData.fromMap({'url': url, 'fit': fit, 'hint': hint});
 
   JsonMap get url => _json['url'] as JsonMap;
   BoxFit? get fit => _json['fit'] != null
       ? BoxFit.values.firstWhere((e) => e.name == _json['fit'] as String)
       : null;
+  String? get hint => _json['hint'] as String?;
 }
 
 /// A catalog item representing a widget that displays an image.
@@ -45,6 +57,8 @@ extension type _ImageData.fromMap(JsonMap _json) {
 ///   asset path.
 /// - `fit`: How the image should be inscribed into the box. See [BoxFit] for
 ///   possible values.
+/// - `hint`: A hint for the image size and style. One of 'icon', 'avatar',
+///   'smallFeature', 'mediumFeature', 'largeFeature', 'header'.
 final image = CatalogItem(
   name: 'Image',
   dataSchema: _schema,
@@ -57,7 +71,8 @@ final image = CatalogItem(
             "Image": {
               "url": {
                 "literalString": "https://storage.googleapis.com/cms-storage-bucket/lockup_flutter_horizontal.c823e53b3a1a7b0d36a9.png"
-              }
+              },
+              "hint": "mediumFeature"
             }
           }
         }
@@ -81,6 +96,7 @@ final image = CatalogItem(
           return const SizedBox.shrink();
         }
         final BoxFit? fit = imageData.fit;
+        final String? hint = imageData.hint;
 
         late Widget child;
 
@@ -89,7 +105,24 @@ final image = CatalogItem(
         } else {
           child = Image.network(location, fit: fit);
         }
-        return SizedBox(height: 150, child: child);
+
+        if (hint == 'avatar') {
+          child = CircleAvatar(child: child);
+        }
+
+        if (hint == 'header') {
+          return SizedBox(width: double.infinity, child: child);
+        }
+
+        final double size = switch (hint) {
+          'icon' || 'avatar' => 32.0,
+          'smallFeature' => 50.0,
+          'mediumFeature' => 150.0,
+          'largeFeature' => 400.0,
+          _ => 150.0,
+        };
+
+        return SizedBox(width: size, height: size, child: child);
       },
     );
   },

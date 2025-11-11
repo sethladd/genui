@@ -11,7 +11,6 @@ import 'core_widgets/check_box.dart' as check_box_item;
 import 'core_widgets/column.dart' as column_item;
 import 'core_widgets/date_time_input.dart' as date_time_input_item;
 import 'core_widgets/divider.dart' as divider_item;
-import 'core_widgets/heading.dart' as heading_item;
 import 'core_widgets/icon.dart' as icon_item;
 import 'core_widgets/image.dart' as image_item;
 import 'core_widgets/list.dart' as list_item;
@@ -57,11 +56,6 @@ class CoreCatalogItems {
 
   /// Represents a thin horizontal line used to separate content.
   static final CatalogItem divider = divider_item.divider;
-
-  /// Represents a text heading, typically used to title sections of content.
-  ///
-  /// Supports different levels to indicate hierarchy.
-  static final CatalogItem heading = heading_item.heading;
 
   /// An icon.
   static final CatalogItem icon = icon_item.icon;
@@ -117,7 +111,6 @@ class CoreCatalogItems {
       column,
       dateTimeInput,
       divider,
-      heading,
       icon,
       image,
       list,
