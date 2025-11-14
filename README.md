@@ -123,6 +123,7 @@ based on a widget catalog from the developers' project.
 ## Some things we're thinking about
 
 - **Genkit Integration:** Integration with Genkit.
+- **ADK Plugin:** turnkey integration with ADK.
 - **Expanded LLM Framework Support:** Official support for additional LLM frameworks.
 - **Streaming UI:** Support for progressively rendering UI components as they stream from the LLM.
 - **Full-Screen Composition:** Enable LLM-driven composition and navigation of entire app screens.
